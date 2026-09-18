@@ -29,7 +29,7 @@ export default function App() {
   // 1. TEMA ESCURO (FUNDO INICIAL): Reponha o fundo escuro original em ardósia profunda (bg-slate-900)
   const [temaEscuro, setTemaEscuro] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const salvo = localStorage.getItem('kwanzapos_tema_escuro');
+      const salvo = localStorage.getItem('VMA Comercial_tema_escuro');
       if (salvo !== null) return salvo === 'true';
     }
     return true; // Tema escuro inicial por padrão
@@ -39,7 +39,7 @@ export default function App() {
     setTemaEscuro((prev) => {
       const proximo = !prev;
       if (typeof window !== 'undefined') {
-        localStorage.setItem('kwanzapos_tema_escuro', String(proximo));
+        localStorage.setItem('VMA Comercial_tema_escuro', String(proximo));
       }
       return proximo;
     });
@@ -276,7 +276,7 @@ export default function App() {
         }`}
       >
         <div className="flex items-center gap-3">
-          <span className="text-xl font-black text-emerald-500 tracking-wider">KwanzaPOS</span>
+          <span className="text-xl font-black text-emerald-500 tracking-wider">VMA Comercial</span>
           <button
             type="button"
             onClick={() => setModalTrocarOperadorAberto(true)}
