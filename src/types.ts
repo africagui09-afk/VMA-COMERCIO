@@ -100,9 +100,27 @@ export interface DailySellerLimit {
   percentageUsed: number;
 }
 
+export type StockMovementType = 'ENTRADA' | 'SAIDA' | 'AJUSTE' | 'VENDA' | 'CANCELAMENTO';
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName?: string;
+  tipo: StockMovementType;
+  quantity: number;
+  previousStock: number;
+  resultingStock: number;
+  reason?: string;
+  userId: string;
+  userName: string;
+  createdAt: string;
+  updatedAt: string;
+  sincronizado?: boolean;
+}
+
 export interface SyncQueueItem {
   id: string;
-  table: 'vendas' | 'produtos' | 'despesas' | 'cancelamentos';
+  table: 'vendas' | 'produtos' | 'despesas' | 'cancelamentos' | 'movimentacoes_estoque';
   action: 'INSERT' | 'UPDATE' | 'DELETE';
   data: any;
   createdAt: string;

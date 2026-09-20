@@ -88,8 +88,18 @@ export default function App() {
       refreshData();
     });
 
+    // Listener para alertas de erro de API Supabase
+    const handleApiError = (event: Event) => {
+      const customEv = event as CustomEvent;
+      if (customEv.detail?.message) {
+        mostrarToast(`⚠️ ${customEv.detail.message}`);
+      }
+    };
+    window.addEventListener('kwanza_api_error', handleApiError);
+
     return () => {
       unsubscribe();
+      window.removeEventListener('kwanza_api_error', handleApiError);
     };
   }, []);
 

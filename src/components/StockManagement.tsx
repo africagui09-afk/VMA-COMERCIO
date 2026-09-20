@@ -65,7 +65,7 @@ export const StockManagement: React.FC<StockManagementProps> = ({
   // Quick adjustment modal
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<number>(5);
-  const [adjustType, setAdjustType] = useState<'IN' | 'OUT'>('IN');
+  const [adjustType, setAdjustType] = useState<'ENTRADA' | 'SAIDA'>('ENTRADA');
 
   const categories = useMemo(() => {
     const list = Array.from(new Set(products.map((p) => p.category))).filter(Boolean);
@@ -199,8 +199,14 @@ export const StockManagement: React.FC<StockManagementProps> = ({
   const handleQuickAdjust = (e: React.FormEvent) => {
     e.preventDefault();
     if (!adjustingProduct) return;
-    const delta = adjustType === 'IN' ? adjustAmount : -adjustAmount;
-    adjustProductStock(adjustingProduct.id, delta, 'Ajuste manual de estoque');
+    const delta = adjustType === 'ENTRADA' ? adjustAmount : -adjustAmount;
+    adjustProductStock(
+      adjustingProduct.id,
+      delta,
+      adjustType === 'ENTRADA' ? 'Entrada manual de estoque' : 'Saída manual de estoque',
+      { id: currentUser?.id, name: currentUser?.name },
+      adjustType
+    );
     setAdjustingProduct(null);
     onRefreshData();
   };
@@ -538,7 +544,7 @@ export const StockManagement: React.FC<StockManagementProps> = ({
                             onClick={() => {
                               setAdjustingProduct(p);
                               setAdjustAmount(5);
-                              setAdjustType('IN');
+                              setAdjustType('ENTRADA');
                             }}
                             className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-colors cursor-pointer ${
                               isLight
@@ -759,9 +765,9 @@ export const StockManagement: React.FC<StockManagementProps> = ({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={() => setAdjustType('IN')}
-                  className={`p-2 rounded-lg font-bold border flex items-center justify-center gap-1 ${
-                    adjustType === 'IN'
+                  onClick={() => setAdjustType('ENTRADA')}
+                  className={`p-2 rounded-lg font-bold border flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                    adjustType === 'ENTRADA'
                       ? 'bg-emerald-600 text-white border-emerald-400'
                       : 'bg-zinc-900 border-zinc-800 text-zinc-400'
                   }`}
@@ -771,9 +777,9 @@ export const StockManagement: React.FC<StockManagementProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAdjustType('OUT')}
-                  className={`p-2 rounded-lg font-bold border flex items-center justify-center gap-1 ${
-                    adjustType === 'OUT'
+                  onClick={() => setAdjustType('SAIDA')}
+                  className={`p-2 rounded-lg font-bold border flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                    adjustType === 'SAIDA'
                       ? 'bg-rose-600 text-white border-rose-400'
                       : 'bg-zinc-900 border-zinc-800 text-zinc-400'
                   }`}

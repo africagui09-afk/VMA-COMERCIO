@@ -3,22 +3,24 @@ import {
   getProducts,
   getSales,
   getExpenses,
+  getStockMovements,
   getFromStorage,
   setToStorage,
   KEYS,
 } from './storage';
 import { getBroadcastBus, broadcastLocalChange } from './realtimeBus';
 export { broadcastLocalChange };
-import { Product, Sale, Expense } from '../types';
+import { Product, Sale, Expense, StockMovement } from '../types';
 import { ClienteFiado, HistoricoFiado } from './fiadoService';
 
-export type ChangeEntity = 'produtos' | 'vendas' | 'despesas' | 'fiado' | 'all';
+export type ChangeEntity = 'produtos' | 'vendas' | 'despesas' | 'fiado' | 'movimentacoes_estoque' | 'all';
 
 export interface SyncSummary {
   produtos: number;
   vendas: number;
   despesas: number;
   fiados: number;
+  movimentacoes: number;
 }
 
 // Helpers para Fiado
@@ -195,6 +197,44 @@ export async function pullAndMergeRemoteData(): Promise<SyncSummary> {
       );
       setToStorage(KEYS.SALES, updatedSales);
       summary.vendas = updatedSales.length;
+    }
+
+    // 5. Reconcilia Movimentações de Estoque
+    const { data: remoteMovs, error: movsErr } = await client
+      .from('movimentacoes_estoque')
+      .select('*')
+      .order('createdAt', { ascending: false })
+      .limit(100);
+
+    if (!movsErr && Array.isArray(remoteMovs) && remoteMovs.length > 0) {
+      const localMovs = getStockMovements();
+      const movsMap = new Map<string, StockMovement>();
+
+      localMovs.forEach((m) => movsMap.set(m.id, m));
+
+      remoteMovs.forEach((r: any) => {
+        const mov: StockMovement = {
+          id: String(r.id),
+          productId: String(r.productId || r.produtoId || ''),
+          tipo: r.type || r.tipo || 'AJUSTE',
+          quantity: Number(r.quantity || r.quantidade) || 0,
+          previousStock: Number(r.previousStock || r.estoqueAnterior) || 0,
+          resultingStock: Number(r.resultingStock || r.estoqueResultante) || 0,
+          reason: r.reason || r.motivo,
+          userId: String(r.userId || r.responsavelId || ''),
+          userName: String(r.userName || r.responsavelNome || 'Sistema'),
+          createdAt: r.createdAt || r.criadoEm || new Date().toISOString(),
+          updatedAt: r.updatedAt || r.atualizadoEm || new Date().toISOString(),
+          sincronizado: true,
+        };
+        movsMap.set(mov.id, mov);
+      });
+
+      const updatedMovs = Array.from(movsMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setToStorage(KEYS.STOCK_MOVEMENTS, updatedMovs);
+      summary.movimentacoes = updatedMovs.length;
     }
   } catch (err) {
     console.warn('Erro ao reconciliar dados com Supabase:', err);
@@ -531,6 +571,45 @@ class MasterRealtimeCoordinator {
             console.warn('[KwanzaRealtime] Erro ao aplicar histórico de fiado:', err);
           }
           this.notifySubscribers('fiado');
+        }
+      );
+
+      // ==========================================
+      // 6. MOVIMENTAÇÕES DE ESTOQUE
+      // ==========================================
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'movimentacoes_estoque' },
+        (payload: any) => {
+          try {
+            if (payload.new && payload.new.id) {
+              const movs = getStockMovements();
+              const existingIdx = movs.findIndex((m) => m.id === String(payload.new.id));
+              const newMov: StockMovement = {
+                id: String(payload.new.id),
+                productId: String(payload.new.productId || payload.new.produtoId || ''),
+                tipo: payload.new.type || payload.new.tipo || 'AJUSTE',
+                quantity: Number(payload.new.quantity || payload.new.quantidade) || 0,
+                previousStock: Number(payload.new.previousStock || payload.new.estoqueAnterior) || 0,
+                resultingStock: Number(payload.new.resultingStock || payload.new.estoqueResultante) || 0,
+                reason: payload.new.reason || payload.new.motivo,
+                userId: String(payload.new.userId || payload.new.responsavelId || ''),
+                userName: String(payload.new.userName || payload.new.responsavelNome || ''),
+                createdAt: payload.new.createdAt || payload.new.criadoEm || new Date().toISOString(),
+                updatedAt: payload.new.updatedAt || payload.new.atualizadoEm || new Date().toISOString(),
+                sincronizado: true,
+              };
+              if (existingIdx >= 0) {
+                movs[existingIdx] = newMov;
+              } else {
+                movs.unshift(newMov);
+              }
+              setToStorage(KEYS.STOCK_MOVEMENTS, movs);
+            }
+          } catch (err) {
+            console.warn('[KwanzaRealtime] Erro ao aplicar movimentação de estoque:', err);
+          }
+          this.notifySubscribers('produtos');
         }
       );
 

@@ -1,6 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
-  clearSyncQueue,
   getSales,
   getSyncQueue,
   getSupabaseConfig,
@@ -10,39 +9,90 @@ import {
   removeSyncQueueItemsForSale,
   saveSupabaseConfig,
 } from './storage';
-import { Sale, SyncQueueItem } from '../types';
+import { Sale, StockMovement, StockMovementType, SyncQueueItem } from '../types';
 
 let cachedClient: SupabaseClient | null = null;
 let currentConfigKey = '';
 
 /**
+ * Emite alertas e eventos globais de erro de API para a interface
+ */
+export function notifyApiError(title: string, details?: any): void {
+  const message = typeof details === 'string' ? details : details?.message || JSON.stringify(details || '');
+  console.warn(`[Supabase API Error] ${title}:`, message);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('kwanza_api_error', {
+        detail: {
+          title,
+          message: `${title}: ${message || 'Erro de comunicação'}`,
+          timestamp: Date.now(),
+        },
+      })
+    );
+  }
+}
+
+/**
+ * Normaliza os termos de movimentação de estoque (Português vs Inglês)
+ * Converte 'in' / 'entrada' -> 'ENTRADA', 'out' / 'saida' / 'saída' -> 'SAIDA'
+ */
+export function normalizeStockMovementType(rawType: any): StockMovementType {
+  const t = String(rawType || '').toUpperCase().trim();
+  if (t === 'IN' || t === 'ENTRADA' || t === 'COMPRA') return 'ENTRADA';
+  if (t === 'OUT' || t === 'SAIDA' || t === 'SAÍDA') return 'SAIDA';
+  if (t === 'VENDA') return 'VENDA';
+  if (t === 'CANCELAMENTO') return 'CANCELAMENTO';
+  return 'AJUSTE';
+}
+
+/**
+ * Sanitiza a movimentação de estoque para o schema do Supabase (public.movimentacoes_estoque)
+ */
+export function sanitizeStockMovementForSupabase(mov: any) {
+  return {
+    id: String(mov.id),
+    productId: String(mov.productId || mov.produtoId || ''),
+    type: normalizeStockMovementType(mov.tipo || mov.type),
+    quantity: Number(mov.quantity || mov.quantidade) || 0,
+    previousStock: Number(mov.previousStock || mov.estoqueAnterior) || 0,
+    resultingStock: Number(mov.resultingStock || mov.estoqueResultante) || 0,
+    reason: mov.reason || mov.motivo || 'Ajuste de estoque',
+    userId: String(mov.userId || mov.responsavelId || ''),
+    userName: String(mov.userName || mov.responsavelNome || 'Sistema'),
+    createdAt: mov.createdAt || mov.criadoEm || new Date().toISOString(),
+    updatedAt: mov.updatedAt || mov.atualizadoEm || new Date().toISOString(),
+  };
+}
+
+/**
  * Obtém o cliente Supabase com prioridade:
  * 1. Variáveis de ambiente VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (Vercel / .env)
  * 2. Configuração manual guardada no localStorage (SupabaseModal)
- *
- * Esta ordem garante que o deploy na Vercel funciona automaticamente
- * sem necessidade de o utilizador configurar manualmente via modal.
  */
 export function getSupabaseClient(): SupabaseClient | null {
   // 1. Prioridade máxima: variáveis de ambiente injetadas pelo Vite / Vercel
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
+  const envUrl = ((import.meta as any).env?.VITE_SUPABASE_URL as string | undefined)?.trim();
+  const envKey = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
 
-  let resolvedUrl: string;
-  let resolvedKey: string;
+  let resolvedUrl: string = '';
+  let resolvedKey: string = '';
 
-  if (envUrl && envKey && envUrl.startsWith('https://') && envKey.length > 20 && !envKey.includes('COLE_AQUI')) {
+  if (envUrl && envKey && envUrl.startsWith('http') && envKey.length > 10 && !envKey.includes('COLE_AQUI')) {
     // ✅ Env vars válidas — usa configuração automática (Vercel / .env local)
     resolvedUrl = envUrl;
     resolvedKey = envKey;
   } else {
-    // 2. Fallback: configuração manual via SupabaseModal (modo demonstração / localStorage)
+    // 2. Fallback: configuração manual via SupabaseModal (localStorage)
     const config = getSupabaseConfig();
-    if (!config.url || !config.anonKey) {
-      return null;
+    if (config.url && config.anonKey) {
+      resolvedUrl = config.url.trim();
+      resolvedKey = config.anonKey.trim();
     }
-    resolvedUrl = config.url;
-    resolvedKey = config.anonKey;
+  }
+
+  if (!resolvedUrl || !resolvedKey) {
+    return null;
   }
 
   const key = `${resolvedUrl}_${resolvedKey}`;
@@ -58,10 +108,11 @@ export function getSupabaseClient(): SupabaseClient | null {
       },
     });
     currentConfigKey = key;
-    console.log('[Supabase] Cliente inicializado:', resolvedUrl);
+    console.log('[Supabase] Cliente inicializado com sucesso:', resolvedUrl);
     return cachedClient;
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Supabase] Falha ao inicializar cliente:', err);
+    notifyApiError('Falha ao inicializar cliente Supabase', err.message);
     return null;
   }
 }
@@ -106,15 +157,16 @@ export function sanitizeSaleForSupabase(sale: any) {
 
 /**
  * Executa a sincronização em lote (batch background sync) de todas as vendas locais
- * com 'sincronizado = false' e injeta no Supabase utilizando VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.
+ * com 'sincronizado = false' e itens da fila no Supabase.
+ * NÃO SIMULA SUCESSO SE FALHAR: Mantém os dados na fila e alerta o usuário em caso de erro.
  */
 export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
   const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
   const unsyncedSales = getUnsyncedSales();
   const queue = getSyncQueue();
+  const totalPending = unsyncedSales.length + queue.length;
 
-  // If no unsynced sales and no queue items exist, return clean synchronized state
-  if (unsyncedSales.length === 0 && queue.length === 0) {
+  if (totalPending === 0) {
     return {
       success: true,
       syncedCount: 0,
@@ -127,35 +179,25 @@ export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
     return {
       success: false,
       syncedCount: 0,
-      remainingCount: Math.max(unsyncedSales.length, queue.length),
-      message: 'Sem ligação à Internet. As vendas continuam guardadas em segurança no dispositivo.',
+      remainingCount: totalPending,
+      message: 'Sem ligação à Internet. Os registros continuam guardados em segurança no dispositivo.',
     };
   }
 
   const client = getSupabaseClient();
 
-  // Caso o Supabase não esteja configurado (modo local / demonstração offline)
+  // Caso o Supabase não esteja configurado
   if (!client) {
-    const totalProcessed = Math.max(unsyncedSales.length, queue.length);
-    if (unsyncedSales.length > 0) {
-      markSalesAsSynced(unsyncedSales.map((s) => s.id));
-    }
-    clearSyncQueue();
-
-    const config = getSupabaseConfig();
-    config.lastSyncTime = new Date().toISOString();
-    saveSupabaseConfig(config);
-
+    notifyApiError('Supabase Não Conectado', 'Credenciais VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não encontradas.');
     return {
-      success: true,
-      syncedCount: totalProcessed,
-      remainingCount: 0,
-      simulated: true,
-      message: `Sincronização em lote concluída com sucesso (${totalProcessed} vendas sincronizadas localmente).`,
+      success: false,
+      syncedCount: 0,
+      remainingCount: totalPending,
+      message: 'Supabase não configurado. Verifique as variáveis de ambiente na Vercel ou configure no modal.',
     };
   }
 
-  // Supabase configurado: Execução da injeção em lote
+  // Supabase configurado: Execução da injeção real em lote
   let synced = 0;
   const errors: string[] = [];
 
@@ -169,29 +211,25 @@ export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
 
       if (batchError) {
         console.warn('Erro ao injetar lote de vendas no Supabase:', batchError.message);
+        notifyApiError('Erro ao sincronizar vendas no Supabase', batchError.message);
         errors.push(batchError.message);
       } else {
         synced += unsyncedSales.length;
-      }
-
-      // Atualiza vendas como sincronizadas localmente
-      markSalesAsSynced(unsyncedSales.map((s) => s.id));
-      for (const sale of unsyncedSales) {
-        removeSyncQueueItemsForSale(sale.id);
+        // Atualiza vendas como sincronizadas localmente SOMENTE com confirmação do servidor
+        markSalesAsSynced(unsyncedSales.map((s) => s.id));
+        for (const sale of unsyncedSales) {
+          removeSyncQueueItemsForSale(sale.id);
+        }
       }
     } catch (err: any) {
-      console.warn('Exceção ao sincronizar lote de vendas:', err.message);
-      errors.push(err.message || 'Falha ao sincronizar vendas');
-      // Marca localmente para liberar a fila travada
-      markSalesAsSynced(unsyncedSales.map((s) => s.id));
-      for (const sale of unsyncedSales) {
-        removeSyncQueueItemsForSale(sale.id);
-      }
-      synced += unsyncedSales.length;
+      const msg = err.message || 'Falha ao sincronizar vendas';
+      console.warn('Exceção ao sincronizar lote de vendas:', msg);
+      notifyApiError('Falha ao sincronizar vendas', msg);
+      errors.push(msg);
     }
   }
 
-  // 2. Processa quaisquer outros itens restantes na fila (cancelamentos, despesas, produtos)
+  // 2. Processa quaisquer outros itens restantes na fila
   const remainingQueue = getSyncQueue();
   for (const item of remainingQueue) {
     try {
@@ -224,9 +262,11 @@ export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
           createdAt: item.data.createdAt,
         };
         if (item.action === 'DELETE') {
-          await client.from('despesas').delete().eq('id', item.data.id);
+          const { error } = await client.from('despesas').delete().eq('id', item.data.id);
+          if (error) throw error;
         } else {
-          await client.from('despesas').upsert(expData, { onConflict: 'id' });
+          const { error } = await client.from('despesas').upsert(expData, { onConflict: 'id' });
+          if (error) throw error;
         }
       } else if (item.table === 'produtos') {
         const prodData = {
@@ -242,31 +282,38 @@ export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
           imageUrl: item.data.imageUrl || null,
           updatedAt: item.data.updatedAt,
         };
-        await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+        const { error } = await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+        if (error) throw error;
+      } else if (item.table === 'movimentacoes_estoque') {
+        const movData = sanitizeStockMovementForSupabase(item.data);
+        const { error } = await client.from('movimentacoes_estoque').upsert(movData, { onConflict: 'id' });
+        if (error) throw error;
       }
 
       removeSyncQueueItem(item.id);
       synced++;
     } catch (err: any) {
       console.warn(`Erro no item da fila [${item.table}/${item.id}]:`, err.message);
-      removeSyncQueueItem(item.id);
+      notifyApiError(`Falha ao sincronizar item da fila (${item.table})`, err.message);
       errors.push(err.message || 'Erro no item');
     }
   }
 
-  // Atualiza timestamp da última sincronização
+  // Atualiza timestamp da última sincronização se houve sucesso
   const remaining = getSyncQueue().length + getUnsyncedSales().length;
-  const config = getSupabaseConfig();
-  config.lastSyncTime = new Date().toISOString();
-  saveSupabaseConfig(config);
+  if (synced > 0) {
+    const config = getSupabaseConfig();
+    config.lastSyncTime = new Date().toISOString();
+    saveSupabaseConfig(config);
+  }
 
   return {
     success: errors.length === 0,
     syncedCount: synced,
     remainingCount: remaining,
     message: errors.length === 0
-      ? `Sincronização em lote concluída: ${synced} registros injetados no Supabase!`
-      : `Sincronização concluída: ${synced} sincronizados.`,
+      ? `Sincronização concluída: ${synced} registros injetados no Supabase!`
+      : `Sincronização parcial: ${synced} sincronizados, ${remaining} pendentes.`,
   };
 }
 
@@ -376,8 +423,13 @@ export async function pushExpenseToSupabase(expense: any): Promise<boolean> {
       createdAt: expense.createdAt || new Date().toISOString(),
     };
     const { error } = await client.from('despesas').upsert(expData, { onConflict: 'id' });
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao enviar despesa para Supabase', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao enviar despesa para Supabase', err.message);
     return false;
   }
 }
@@ -388,8 +440,33 @@ export async function deleteExpenseFromSupabase(expenseId: string): Promise<bool
 
   try {
     const { error } = await client.from('despesas').delete().eq('id', expenseId);
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao excluir despesa do Supabase', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao excluir despesa do Supabase', err.message);
+    return false;
+  }
+}
+
+export async function pushStockMovementToSupabase(mov: StockMovement | any): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
+
+  try {
+    const sanitized = sanitizeStockMovementForSupabase(mov);
+    const { error } = await client.from('movimentacoes_estoque').upsert(sanitized, { onConflict: 'id' });
+    if (error) {
+      console.warn('[Supabase Push] Erro ao gravar movimentação de estoque:', error.message);
+      notifyApiError('Erro ao gravar movimentação de estoque', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase Push] Exceção ao gravar movimentação de estoque:', err);
+    notifyApiError('Exceção ao gravar movimentação de estoque', err.message);
     return false;
   }
 }
@@ -488,6 +565,21 @@ create table if not exists public.historico_fiado (
   observacoes text
 );
 
+-- 6. TABELA DE MOVIMENTAÇÕES DE ESTOQUE (HISTÓRICO AUDITÁVEL)
+create table if not exists public.movimentacoes_estoque (
+  id text primary key,
+  "productId" text not null,
+  type text not null default 'AJUSTE',
+  quantity integer not null default 0,
+  "previousStock" integer not null default 0,
+  "resultingStock" integer not null default 0,
+  reason text,
+  "userId" text not null default '',
+  "userName" text not null default '',
+  "createdAt" timestamp with time zone default now(),
+  "updatedAt" timestamp with time zone default now()
+);
+
 -- ==============================================================================
 -- ATIVAÇÃO DA REPLICAÇÃO COMPLETA (REPLICA IDENTITY FULL)
 -- Obriga o PostgreSQL a transmitir o registo anterior e o novo em UPDATE e DELETE
@@ -497,6 +589,7 @@ alter table public.vendas replica identity full;
 alter table public.despesas replica identity full;
 alter table public.clientes_fiado replica identity full;
 alter table public.historico_fiado replica identity full;
+alter table public.movimentacoes_estoque replica identity full;
 
 -- ==============================================================================
 -- PUBLICAÇÃO REALTIME (SUPABASE_REALTIME)
@@ -514,6 +607,7 @@ alter publication supabase_realtime add table public.vendas;
 alter publication supabase_realtime add table public.despesas;
 alter publication supabase_realtime add table public.clientes_fiado;
 alter publication supabase_realtime add table public.historico_fiado;
+alter publication supabase_realtime add table public.movimentacoes_estoque;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACESSO (ROW LEVEL SECURITY - RLS)
@@ -524,6 +618,7 @@ alter table public.vendas enable row level security;
 alter table public.despesas enable row level security;
 alter table public.clientes_fiado enable row level security;
 alter table public.historico_fiado enable row level security;
+alter table public.movimentacoes_estoque enable row level security;
 
 -- Remove políticas antigas se existirem para evitar duplicidade
 drop policy if exists "kwanzapos_produtos_all" on public.produtos;
@@ -531,6 +626,14 @@ drop policy if exists "kwanzapos_vendas_all" on public.vendas;
 drop policy if exists "kwanzapos_despesas_all" on public.despesas;
 drop policy if exists "kwanzapos_clientes_fiado_all" on public.clientes_fiado;
 drop policy if exists "kwanzapos_historico_fiado_all" on public.historico_fiado;
+drop policy if exists "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque;
+
+create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
+create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);
+create policy "kwanzapos_despesas_all" on public.despesas for all using (true) with check (true);
+create policy "kwanzapos_clientes_fiado_all" on public.clientes_fiado for all using (true) with check (true);
+create policy "kwanzapos_historico_fiado_all" on public.historico_fiado for all using (true) with check (true);
+create policy "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque for all using (true) with check (true);
 
 create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
 create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);

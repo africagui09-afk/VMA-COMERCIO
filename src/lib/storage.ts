@@ -1,4 +1,4 @@
-import { Expense, Product, Sale, SyncQueueItem, User } from '../types';
+import { Expense, Product, Sale, StockMovement, StockMovementType, SyncQueueItem, User } from '../types';
 import { broadcastLocalChange } from './realtimeBus';
 import {
   directUpsertProduct,
@@ -7,6 +7,7 @@ import {
   directCancelSale,
   directUpsertExpense,
   directDeleteExpense,
+  directUpsertStockMovement,
 } from './supabaseDirect';
 
 export const SELLER_DAILY_LIMIT = 900000; // 900.000 Kz
@@ -366,6 +367,7 @@ export const KEYS = {
   SYNC_QUEUE: 'kwanzapos_sync_queue_v1',
   INVOICE_SEQ: 'kwanzapos_invoice_sequence_v1',
   SUPABASE_CONFIG: 'kwanzapos_supabase_config_v1',
+  STOCK_MOVEMENTS: 'kwanzapos_stock_movements_v1',
 };
 
 // Safe localStorage access
@@ -488,13 +490,75 @@ export function deleteProduct(productId: string): void {
   );
 }
 
-export function adjustProductStock(productId: string, quantityChange: number, reason: string): Product | null {
+// Stock Movements (Histórico de Movimentações de Estoque)
+export function getStockMovements(): StockMovement[] {
+  return getFromStorage<StockMovement[]>(KEYS.STOCK_MOVEMENTS, []);
+}
+
+export function saveStockMovementLocal(mov: StockMovement): void {
+  const list = getStockMovements();
+  list.unshift(mov);
+  setToStorage(KEYS.STOCK_MOVEMENTS, list);
+}
+
+export function adjustProductStock(
+  productId: string,
+  quantityChange: number,
+  reason: string,
+  user?: { id?: string; name?: string },
+  explicitType?: StockMovementType | string
+): Product | null {
   const products = getProducts();
   const p = products.find((item) => item.id === productId);
   if (!p) return null;
-  p.stock = Math.max(0, p.stock + quantityChange);
-  p.updatedAt = new Date().toISOString();
+
+  const previousStock = p.stock;
+  const resultingStock = Math.max(0, p.stock + quantityChange);
+  const nowStr = new Date().toISOString();
+
+  // Determina tipo padronizado em Português: 'ENTRADA' | 'SAIDA' | 'AJUSTE'
+  let tipo: StockMovementType = 'AJUSTE';
+  if (explicitType) {
+    const norm = String(explicitType).toUpperCase().trim();
+    if (norm === 'IN' || norm === 'ENTRADA') tipo = 'ENTRADA';
+    else if (norm === 'OUT' || norm === 'SAIDA' || norm === 'SAÍDA') tipo = 'SAIDA';
+    else if (norm === 'VENDA') tipo = 'VENDA';
+    else if (norm === 'CANCELAMENTO') tipo = 'CANCELAMENTO';
+    else tipo = 'AJUSTE';
+  } else {
+    tipo = quantityChange >= 0 ? 'ENTRADA' : 'SAIDA';
+  }
+
+  p.stock = resultingStock;
+  p.updatedAt = nowStr;
   saveProduct(p);
+
+  // Regista movimentação de estoque auditável
+  const movement: StockMovement = {
+    id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    productId: p.id,
+    productName: p.name,
+    tipo,
+    quantity: Math.abs(quantityChange),
+    previousStock,
+    resultingStock,
+    reason: reason || (tipo === 'ENTRADA' ? 'Entrada manual de estoque' : 'Saída manual de estoque'),
+    userId: user?.id || 'usr-sistema',
+    userName: user?.name || 'Sistema',
+    createdAt: nowStr,
+    updatedAt: nowStr,
+    sincronizado: false,
+  };
+
+  saveStockMovementLocal(movement);
+  addToSyncQueue('movimentacoes_estoque', 'INSERT', movement);
+  broadcastLocalChange('produtos', { product: p, movement });
+
+  // Disparo assíncrono para o Supabase
+  directUpsertStockMovement(movement).catch((err) =>
+    console.warn('[DirectSync] Falha ao enviar movimentação de estoque:', err)
+  );
+
   return p;
 }
 

@@ -1,5 +1,5 @@
-import { getSupabaseClient } from './supabase';
-import { Sale, Product, Expense } from '../types';
+import { getSupabaseClient, notifyApiError, sanitizeStockMovementForSupabase } from './supabase';
+import { Sale, Product, Expense, StockMovement } from '../types';
 
 /**
  * Módulo de Disparo Direto e Assíncrono ao Supabase (Client-Side).
@@ -31,11 +31,13 @@ export async function directUpsertProduct(product: Product): Promise<boolean> {
     const { error } = await client.from('produtos').upsert(payload, { onConflict: 'id' });
     if (error) {
       console.warn('[DirectSupabase] Erro ao sincronizar produto:', error.message);
+      notifyApiError('Erro ao atualizar produto no servidor', error.message);
       return false;
     }
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.warn('[DirectSupabase] Exceção ao gravar produto:', err);
+    notifyApiError('Exceção ao gravar produto', err?.message);
     return false;
   }
 }
@@ -46,8 +48,13 @@ export async function directDeleteProduct(productId: string): Promise<boolean> {
 
   try {
     const { error } = await client.from('produtos').delete().eq('id', productId);
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao excluir produto no servidor', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao excluir produto', err?.message);
     return false;
   }
 }
@@ -84,11 +91,13 @@ export async function directUpsertSale(sale: Sale): Promise<boolean> {
     const { error } = await client.from('vendas').upsert(sanitized, { onConflict: 'id' });
     if (error) {
       console.warn('[DirectSupabase] Erro ao gravar venda no Supabase:', error.message);
+      notifyApiError('Erro ao gravar venda no servidor', error.message);
       return false;
     }
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.warn('[DirectSupabase] Exceção ao sincronizar venda:', err);
+    notifyApiError('Exceção ao sincronizar venda', err?.message);
     return false;
   }
 }
@@ -112,8 +121,13 @@ export async function directCancelSale(
         cancellationReason: cancellationReason || null,
       })
       .eq('id', saleId);
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao cancelar venda no servidor', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao cancelar venda', err?.message);
     return false;
   }
 }
@@ -133,8 +147,13 @@ export async function directUpsertExpense(expense: Expense): Promise<boolean> {
       createdAt: expense.createdAt || new Date().toISOString(),
     };
     const { error } = await client.from('despesas').upsert(expData, { onConflict: 'id' });
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao gravar despesa no servidor', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao sincronizar despesa', err?.message);
     return false;
   }
 }
@@ -145,8 +164,33 @@ export async function directDeleteExpense(expenseId: string): Promise<boolean> {
 
   try {
     const { error } = await client.from('despesas').delete().eq('id', expenseId);
-    return !error;
-  } catch {
+    if (error) {
+      notifyApiError('Erro ao excluir despesa no servidor', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    notifyApiError('Exceção ao excluir despesa', err?.message);
+    return false;
+  }
+}
+
+export async function directUpsertStockMovement(mov: StockMovement | any): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
+
+  try {
+    const sanitized = sanitizeStockMovementForSupabase(mov);
+    const { error } = await client.from('movimentacoes_estoque').upsert(sanitized, { onConflict: 'id' });
+    if (error) {
+      console.warn('[DirectSupabase] Erro ao gravar movimentação de estoque:', error.message);
+      notifyApiError('Erro ao gravar movimentação de estoque no servidor', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[DirectSupabase] Exceção ao gravar movimentação de estoque:', err);
+    notifyApiError('Exceção ao gravar movimentação de estoque', err?.message);
     return false;
   }
 }
