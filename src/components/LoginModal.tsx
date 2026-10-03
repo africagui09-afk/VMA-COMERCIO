@@ -14,7 +14,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { getStoredProfiles, Profile, verifyAndSwitchProfile } from '../lib/auth';
+import { getStoredProfiles, Profile, verifyAndSwitchProfile, syncProfilesFromSupabase } from '../lib/auth';
 import { getRoleBadgeInfo } from '../lib/formatters';
 import { User } from '../types';
 
@@ -42,7 +42,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   if (!isOpen) return null;
 
   const isLight = theme === 'light';
-  const profiles: Profile[] = getStoredProfiles();
+  const [profiles, setProfiles] = useState<Profile[]>(() => getStoredProfiles());
+
+  useEffect(() => {
+    syncProfilesFromSupabase().then((list) => {
+      if (list && list.length > 0) {
+        setProfiles(list);
+      }
+    });
+  }, []);
 
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [passwordInput, setPasswordInput] = useState<string>('');

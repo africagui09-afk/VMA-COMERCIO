@@ -354,7 +354,17 @@ export default function App() {
               : aba === 'Painel Analítico'
               ? 'painel analítico'
               : aba.toLowerCase();
-          if (cargoExibicao === 'VENDEDOR' && viewMapeada !== 'pdv') return null;
+          
+          // RBAC Dinâmico:
+          // Operador/Vendedor: Frente de Caixa e Histórico de Vendas
+          if (cargoExibicao === 'VENDEDOR' && viewMapeada !== 'pdv' && viewMapeada !== 'histórico & vendas') {
+            return null;
+          }
+          // Gerente: Tudo exceto Painel Analítico Geral
+          if (cargoExibicao === 'GERENTE' && viewMapeada === 'painel analítico') {
+            return null;
+          }
+
           const ativo = abaAtual === viewMapeada;
           return (
             <button
@@ -698,6 +708,7 @@ export default function App() {
             sales={sales}
             onRefreshData={refreshData}
             onBackToPDV={() => setAbaAtual('pdv')}
+            onReprintReceipt={(sale) => printThermalReceipt(sale, { paperWidth: '80mm' })}
             theme={temaEscuro ? 'dark' : 'light'}
           />
         )}

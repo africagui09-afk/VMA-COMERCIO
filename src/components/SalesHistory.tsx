@@ -25,7 +25,7 @@ interface SalesHistoryProps {
   sales: Sale[];
   onRefreshData: () => void;
   onBackToPDV: () => void;
-  onReprintReceipt: (sale: Sale) => void;
+  onReprintReceipt?: (sale: Sale) => void;
   theme?: 'dark' | 'light';
 }
 
