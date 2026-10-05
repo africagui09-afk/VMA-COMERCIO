@@ -36,329 +36,7 @@ export const DEFAULT_USERS: User[] = [
   },
 ];
 
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'Cerveja Cuca Lata 330ml',
-    barcode: '5601234001',
-    category: 'Bebidas',
-    price: 650,
-    costPrice: 450,
-    stock: 85,
-    minStock: 25,
-    unit: 'lata',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-2',
-    name: 'Refrigerante Blue Polpa 330ml',
-    barcode: '5601234002',
-    category: 'Bebidas',
-    price: 500,
-    costPrice: 320,
-    stock: 42,
-    minStock: 20,
-    unit: 'un',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-3',
-    name: 'Água Mineral Pura 1.5L',
-    barcode: '5601234003',
-    category: 'Bebidas',
-    price: 400,
-    costPrice: 220,
-    stock: 110,
-    minStock: 30,
-    unit: 'garrafa',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-4',
-    name: 'Arroz Agulha Tio Lucas 1kg',
-    barcode: '5601234004',
-    category: 'Mercearia',
-    price: 1850,
-    costPrice: 1350,
-    stock: 4, // ABAIXO DO MÍNIMO
-    minStock: 15,
-    unit: 'pacote',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-5',
-    name: 'Óleo Alimentar Fula 1L',
-    barcode: '5601234005',
-    category: 'Mercearia',
-    price: 2400,
-    costPrice: 1750,
-    stock: 3, // ABAIXO DO MÍNIMO
-    minStock: 12,
-    unit: 'garrafa',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-6',
-    name: 'Leite em Pó Nido Fortificada 400g',
-    barcode: '5601234006',
-    category: 'Laticínios',
-    price: 4950,
-    costPrice: 3800,
-    stock: 19,
-    minStock: 8,
-    unit: 'lata',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-7',
-    name: 'Massa Esparguete Nacional 500g',
-    barcode: '5601234007',
-    category: 'Mercearia',
-    price: 850,
-    costPrice: 550,
-    stock: 65,
-    minStock: 20,
-    unit: 'pacote',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-8',
-    name: 'Açúcar Branco Doce 1kg',
-    barcode: '5601234008',
-    category: 'Mercearia',
-    price: 1200,
-    costPrice: 850,
-    stock: 2, // ABAIXO DO MÍNIMO
-    minStock: 10,
-    unit: 'kg',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-9',
-    name: 'Sabão Azul Tradicional 200g',
-    barcode: '5601234009',
-    category: 'Higiene & Limpeza',
-    price: 450,
-    costPrice: 280,
-    stock: 48,
-    minStock: 15,
-    unit: 'barra',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-10',
-    name: 'Detergente Omo Multiação 1kg',
-    barcode: '5601234010',
-    category: 'Higiene & Limpeza',
-    price: 3200,
-    costPrice: 2300,
-    stock: 14,
-    minStock: 8,
-    unit: 'pacote',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-11',
-    name: 'Bolacha Maria Campina 200g',
-    barcode: '5601234011',
-    category: 'Mercearia',
-    price: 600,
-    costPrice: 380,
-    stock: 0, // ESGOTADO
-    minStock: 15,
-    unit: 'pacote',
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-12',
-    name: 'Café Ginga Torrado Moído 250g',
-    barcode: '5601234012',
-    category: 'Bebidas',
-    price: 2100,
-    costPrice: 1450,
-    stock: 22,
-    minStock: 10,
-    unit: 'pacote',
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const now = Date.now();
-const minutesAgo = (m: number) => new Date(now - m * 60 * 1000).toISOString();
-const hoursAgo = (h: number) => new Date(now - h * 60 * 60 * 1000).toISOString();
-const daysAgo = (d: number) => new Date(now - d * 24 * 60 * 60 * 1000).toISOString();
-
-const INITIAL_SALES: Sale[] = [
-  {
-    id: 'sale-001',
-    invoiceNumber: 'VD-2026-0001',
-    items: [
-      {
-        productId: 'prod-1',
-        productName: 'Cerveja Cuca Lata 330ml',
-        quantity: 12,
-        unitPrice: 650,
-        costPrice: 450,
-        discount: 0,
-        total: 7800,
-      },
-      {
-        productId: 'prod-2',
-        productName: 'Refrigerante Blue Polpa 330ml',
-        quantity: 6,
-        unitPrice: 500,
-        costPrice: 320,
-        discount: 0,
-        total: 3000,
-      },
-    ],
-    subtotal: 10800,
-    discountTotal: 0,
-    total: 10800,
-    totalCost: 7320,
-    payments: [{ method: 'MULTICAIXA', amount: 10800 }],
-    amountReceived: 10800,
-    change: 0,
-    sellerId: 'user-seller-1',
-    sellerName: 'Carlos Vendedor',
-    sellerRole: 'VENDEDOR',
-    customerName: 'Manuel Santos',
-    status: 'CONCLUIDA',
-    createdAt: minutesAgo(20), // 20 min atrás -> GERENTE PODE CANCELAR
-    syncedToSupabase: true,
-    sincronizado: true,
-  },
-  {
-    id: 'sale-002',
-    invoiceNumber: 'VD-2026-0002',
-    items: [
-      {
-        productId: 'prod-6',
-        productName: 'Leite em Pó Nido Fortificada 400g',
-        quantity: 3,
-        unitPrice: 4950,
-        costPrice: 3800,
-        discount: 0,
-        total: 14850,
-      },
-      {
-        productId: 'prod-7',
-        productName: 'Massa Esparguete Nacional 500g',
-        quantity: 5,
-        unitPrice: 850,
-        costPrice: 550,
-        discount: 0,
-        total: 4250,
-      },
-      {
-        productId: 'prod-10',
-        productName: 'Detergente Omo Multiação 1kg',
-        quantity: 2,
-        unitPrice: 3200,
-        costPrice: 2300,
-        discount: 0,
-        total: 6400,
-      },
-    ],
-    subtotal: 25500,
-    discountTotal: 500,
-    total: 25000,
-    totalCost: 18750,
-    payments: [{ method: 'DINHEIRO', amount: 25000 }],
-    amountReceived: 30000,
-    change: 5000,
-    sellerId: 'user-seller-1',
-    sellerName: 'Carlos Vendedor',
-    sellerRole: 'VENDEDOR',
-    status: 'CONCLUIDA',
-    createdAt: hoursAgo(3), // 3 horas atrás -> GERENTE NÃO PODE CANCELAR (apenas Admin)
-    syncedToSupabase: true,
-    sincronizado: true,
-  },
-  {
-    id: 'sale-003',
-    invoiceNumber: 'VD-2026-0003',
-    items: [
-      {
-        productId: 'prod-5',
-        productName: 'Óleo Alimentar Fula 1L',
-        quantity: 10,
-        unitPrice: 2400,
-        costPrice: 1750,
-        discount: 0,
-        total: 24000,
-      },
-      {
-        productId: 'prod-4',
-        productName: 'Arroz Agulha Tio Lucas 1kg',
-        quantity: 15,
-        unitPrice: 1850,
-        costPrice: 1350,
-        discount: 0,
-        total: 27750,
-      },
-    ],
-    subtotal: 51750,
-    discountTotal: 0,
-    total: 51750,
-    totalCost: 37750,
-    payments: [{ method: 'TRANSFERENCIA', amount: 51750 }],
-    amountReceived: 51750,
-    change: 0,
-    sellerId: 'user-manager-1',
-    sellerName: 'Maria Silva',
-    sellerRole: 'GERENTE',
-    customerName: 'Padaria Kianda',
-    status: 'CONCLUIDA',
-    createdAt: daysAgo(1),
-    syncedToSupabase: true,
-    sincronizado: true,
-  },
-];
-
-const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: 'exp-001',
-    description: 'Avaria/Quebra de 1 caixa de Cuca no descarregamento',
-    category: 'PERDA',
-    amount: 10800,
-    date: new Date().toISOString().split('T')[0],
-    registeredBy: 'Maria Silva (Gerente)',
-    createdAt: hoursAgo(4),
-    syncedToSupabase: true,
-  },
-  {
-    id: 'exp-002',
-    description: 'Renda e aluguer do espaço comercial da loja',
-    category: 'FIXA',
-    amount: 80000,
-    date: new Date().toISOString().split('T')[0],
-    registeredBy: 'Eng. António Domingos',
-    createdAt: daysAgo(2),
-    syncedToSupabase: true,
-  },
-  {
-    id: 'exp-003',
-    description: 'Recarga de Energia Elétrica ENDE Loja',
-    category: 'VARIAVEL',
-    amount: 25000,
-    date: new Date().toISOString().split('T')[0],
-    registeredBy: 'Eng. António Domingos',
-    createdAt: daysAgo(1),
-    syncedToSupabase: true,
-  },
-  {
-    id: 'exp-004',
-    description: 'Adiantamento de Salário e Comissões dos Caixas',
-    category: 'SALARIO',
-    amount: 50000,
-    date: new Date().toISOString().split('T')[0],
-    registeredBy: 'Maria Silva (Gerente)',
-    createdAt: hoursAgo(6),
-    syncedToSupabase: true,
-  },
-];
-
+// Sem dados fictícios - fonte da verdade direta no Supabase
 export const KEYS = {
   PRODUCTS: 'kwanzapos_products_v1',
   SALES: 'kwanzapos_sales_v1',
@@ -370,7 +48,7 @@ export const KEYS = {
   STOCK_MOVEMENTS: 'kwanzapos_stock_movements_v1',
 };
 
-// Safe localStorage access
+// Acesso seguro ao localStorage (Cache em Memória Local)
 export function getFromStorage<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -389,30 +67,16 @@ export function setToStorage<T>(key: string, value: T): void {
   }
 }
 
-// Initialize seed data if not present or force clean
+// Inicializa armazenamento local sem injetar registros falsos
 export function initStorage(forceClean: boolean = false): void {
   if (forceClean) {
-    setToStorage(KEYS.PRODUCTS, INITIAL_PRODUCTS);
-    setToStorage(KEYS.SALES, INITIAL_SALES);
-    setToStorage(KEYS.EXPENSES, INITIAL_EXPENSES);
+    setToStorage(KEYS.PRODUCTS, []);
+    setToStorage(KEYS.SALES, []);
+    setToStorage(KEYS.EXPENSES, []);
+    setToStorage(KEYS.STOCK_MOVEMENTS, []);
     setToStorage(KEYS.CURRENT_USER, DEFAULT_USERS[0]);
-    setToStorage(KEYS.INVOICE_SEQ, 4);
+    setToStorage(KEYS.INVOICE_SEQ, 1);
     return;
-  }
-
-  const existingProducts = getFromStorage<Product[] | null>(KEYS.PRODUCTS, null);
-  if (!existingProducts || !Array.isArray(existingProducts) || existingProducts.length === 0) {
-    setToStorage(KEYS.PRODUCTS, INITIAL_PRODUCTS);
-  }
-
-  const existingSales = getFromStorage<Sale[] | null>(KEYS.SALES, null);
-  if (!existingSales || !Array.isArray(existingSales)) {
-    setToStorage(KEYS.SALES, INITIAL_SALES);
-  }
-
-  const existingExpenses = getFromStorage<Expense[] | null>(KEYS.EXPENSES, null);
-  if (!existingExpenses || !Array.isArray(existingExpenses)) {
-    setToStorage(KEYS.EXPENSES, INITIAL_EXPENSES);
   }
 
   const existingUser = getFromStorage<User | null>(KEYS.CURRENT_USER, null);
@@ -421,7 +85,7 @@ export function initStorage(forceClean: boolean = false): void {
   }
 
   if (!localStorage.getItem(KEYS.INVOICE_SEQ)) {
-    setToStorage(KEYS.INVOICE_SEQ, 4);
+    setToStorage(KEYS.INVOICE_SEQ, 1);
   }
 }
 
@@ -447,12 +111,192 @@ export function getSystemUsers(): User[] {
   return DEFAULT_USERS;
 }
 
-// Products
+// ─── LEITURAS DIRETAS DA NUVEM (SUPABASE) ───────────────────────────────────
+
+/**
+ * Busca a lista completa de produtos diretamente do Supabase e atualiza o cache local.
+ */
+export async function fetchProductsFromSupabase(): Promise<Product[]> {
+  try {
+    const { getSupabaseClient } = await import('./supabase');
+    const client = getSupabaseClient();
+    if (!client) {
+      return getFromStorage<Product[]>(KEYS.PRODUCTS, []);
+    }
+    const { data, error } = await client.from('produtos').select('*').order('name', { ascending: true });
+    if (error) {
+      console.warn('[Supabase Direct] Erro ao buscar produtos:', error.message);
+      return getFromStorage<Product[]>(KEYS.PRODUCTS, []);
+    }
+    if (Array.isArray(data)) {
+      const mapped: Product[] = data.map((r: any) => ({
+        id: String(r.id),
+        name: r.name || 'Sem nome',
+        barcode: r.barcode || '',
+        category: r.category || 'Geral',
+        price: Number(r.price) || 0,
+        costPrice: Number(r.costPrice) || 0,
+        stock: Number(r.stock) || 0,
+        minStock: Number(r.minStock) || 5,
+        unit: r.unit || 'un',
+        imageUrl: r.imageUrl || undefined,
+        updatedAt: r.updatedAt || new Date().toISOString(),
+      }));
+      setToStorage(KEYS.PRODUCTS, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('[Supabase Direct] Exceção ao buscar produtos:', err);
+  }
+  return getFromStorage<Product[]>(KEYS.PRODUCTS, []);
+}
+
+/**
+ * Busca a lista de vendas diretamente do Supabase e atualiza o cache local.
+ */
+export async function fetchSalesFromSupabase(): Promise<Sale[]> {
+  try {
+    const { getSupabaseClient } = await import('./supabase');
+    const client = getSupabaseClient();
+    if (!client) {
+      return getFromStorage<Sale[]>(KEYS.SALES, []);
+    }
+    const { data, error } = await client
+      .from('vendas')
+      .select('*')
+      .order('createdAt', { ascending: false })
+      .limit(300);
+    if (error) {
+      console.warn('[Supabase Direct] Erro ao buscar vendas:', error.message);
+      return getFromStorage<Sale[]>(KEYS.SALES, []);
+    }
+    if (Array.isArray(data)) {
+      const mapped: Sale[] = data.map((r: any) => ({
+        id: String(r.id),
+        invoiceNumber: r.invoiceNumber || '',
+        items: Array.isArray(r.items) ? r.items : [],
+        subtotal: Number(r.subtotal) || 0,
+        discountTotal: Number(r.discountTotal) || 0,
+        total: Number(r.total) || 0,
+        totalCost: Number(r.totalCost) || 0,
+        payments: Array.isArray(r.payments) ? r.payments : [],
+        amountReceived: r.amountReceived !== null && r.amountReceived !== undefined ? Number(r.amountReceived) : undefined,
+        change: Number(r.change) || 0,
+        sellerId: r.sellerId || '',
+        sellerName: r.sellerName || '',
+        sellerRole: r.sellerRole || 'VENDEDOR',
+        customerName: r.customerName || undefined,
+        customerNif: r.customerNif || undefined,
+        notes: r.notes || undefined,
+        status: r.status || 'CONCLUIDA',
+        cancelledAt: r.cancelledAt || undefined,
+        cancelledBy: r.cancelledBy || undefined,
+        cancellationReason: r.cancellationReason || undefined,
+        createdAt: r.createdAt || new Date().toISOString(),
+        syncedToSupabase: true,
+        sincronizado: true,
+      }));
+      setToStorage(KEYS.SALES, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('[Supabase Direct] Exceção ao buscar vendas:', err);
+  }
+  return getFromStorage<Sale[]>(KEYS.SALES, []);
+}
+
+/**
+ * Busca a lista de despesas diretamente do Supabase e atualiza o cache local.
+ */
+export async function fetchExpensesFromSupabase(): Promise<Expense[]> {
+  try {
+    const { getSupabaseClient } = await import('./supabase');
+    const client = getSupabaseClient();
+    if (!client) {
+      return getFromStorage<Expense[]>(KEYS.EXPENSES, []);
+    }
+    const { data, error } = await client
+      .from('despesas')
+      .select('*')
+      .order('createdAt', { ascending: false })
+      .limit(300);
+    if (error) {
+      console.warn('[Supabase Direct] Erro ao buscar despesas:', error.message);
+      return getFromStorage<Expense[]>(KEYS.EXPENSES, []);
+    }
+    if (Array.isArray(data)) {
+      const mapped: Expense[] = data.map((r: any) => ({
+        id: String(r.id),
+        description: r.description || '',
+        type: r.type || 'FIXA',
+        category: r.category || 'Outros',
+        amount: Number(r.amount) || 0,
+        dueDate: r.dueDate || r.date,
+        date: r.date || new Date().toISOString().split('T')[0],
+        status: r.status || 'PAGO',
+        registeredBy: r.registeredBy || 'Sistema',
+        notes: r.notes || undefined,
+        createdAt: r.createdAt || r.created_at || new Date().toISOString(),
+        syncedToSupabase: true,
+      }));
+      setToStorage(KEYS.EXPENSES, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('[Supabase Direct] Exceção ao buscar despesas:', err);
+  }
+  return getFromStorage<Expense[]>(KEYS.EXPENSES, []);
+}
+
+/**
+ * Busca movimentações de estoque diretamente do Supabase e atualiza o cache local.
+ */
+export async function fetchStockMovementsFromSupabase(): Promise<StockMovement[]> {
+  try {
+    const { getSupabaseClient } = await import('./supabase');
+    const client = getSupabaseClient();
+    if (!client) {
+      return getFromStorage<StockMovement[]>(KEYS.STOCK_MOVEMENTS, []);
+    }
+    const { data, error } = await client
+      .from('movimentacoes_estoque')
+      .select('*')
+      .order('createdAt', { ascending: false })
+      .limit(300);
+    if (error) {
+      console.warn('[Supabase Direct] Erro ao buscar movimentações:', error.message);
+      return getFromStorage<StockMovement[]>(KEYS.STOCK_MOVEMENTS, []);
+    }
+    if (Array.isArray(data)) {
+      const mapped: StockMovement[] = data.map((r: any) => ({
+        id: String(r.id),
+        productId: String(r.productId || r.produtoId || ''),
+        tipo: r.type || r.tipo || 'AJUSTE',
+        quantity: Number(r.quantity || r.quantidade) || 0,
+        previousStock: Number(r.previousStock || r.estoqueAnterior) || 0,
+        resultingStock: Number(r.resultingStock || r.estoqueResultante) || 0,
+        reason: r.reason || r.motivo,
+        userId: String(r.userId || r.responsavelId || ''),
+        userName: String(r.userName || r.responsavelNome || 'Sistema'),
+        createdAt: r.createdAt || r.criadoEm || new Date().toISOString(),
+        updatedAt: r.updatedAt || r.atualizadoEm || new Date().toISOString(),
+        sincronizado: true,
+      }));
+      setToStorage(KEYS.STOCK_MOVEMENTS, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('[Supabase Direct] Exceção ao buscar movimentações:', err);
+  }
+  return getFromStorage<StockMovement[]>(KEYS.STOCK_MOVEMENTS, []);
+}
+
+// ─── PRODUTOS (ESTOQUE) ─────────────────────────────────────────────────────
+
 export function getProducts(): Product[] {
-  const prods = getFromStorage<Product[]>(KEYS.PRODUCTS, INITIAL_PRODUCTS);
-  if (!Array.isArray(prods) || prods.length === 0) {
-    setToStorage(KEYS.PRODUCTS, INITIAL_PRODUCTS);
-    return INITIAL_PRODUCTS;
+  const prods = getFromStorage<Product[]>(KEYS.PRODUCTS, []);
+  if (!Array.isArray(prods)) {
+    return [];
   }
   return prods;
 }
@@ -472,9 +316,10 @@ export function saveProduct(product: Product): void {
   }
   setToStorage(KEYS.PRODUCTS, products);
   broadcastLocalChange('produtos', updatedProduct);
-  // Disparo assíncrono para Supabase em milissegundos
+
+  // Disparo direto e imediato para a API do Supabase
   directUpsertProduct(updatedProduct).catch((err) =>
-    console.warn('[DirectSync] Falha ao enviar produto:', err)
+    console.warn('[DirectSupabase] Falha ao enviar produto:', err)
   );
 }
 
@@ -484,9 +329,10 @@ export function deleteProduct(productId: string): void {
   setToStorage(KEYS.PRODUCTS, filtered);
   addToSyncQueue('produtos', 'DELETE', { id: productId });
   broadcastLocalChange('produtos', { id: productId, deleted: true });
-  // Disparo assíncrono para Supabase em milissegundos
+
+  // Disparo direto e imediato para a API do Supabase
   directDeleteProduct(productId).catch((err) =>
-    console.warn('[DirectSync] Falha ao excluir produto:', err)
+    console.warn('[DirectSupabase] Falha ao excluir produto:', err)
   );
 }
 
@@ -516,7 +362,6 @@ export function adjustProductStock(
   const resultingStock = Math.max(0, p.stock + quantityChange);
   const nowStr = new Date().toISOString();
 
-  // Determina tipo padronizado em Português: 'ENTRADA' | 'SAIDA' | 'AJUSTE'
   let tipo: StockMovementType = 'AJUSTE';
   if (explicitType) {
     const norm = String(explicitType).toUpperCase().trim();
@@ -533,7 +378,6 @@ export function adjustProductStock(
   p.updatedAt = nowStr;
   saveProduct(p);
 
-  // Regista movimentação de estoque auditável
   const movement: StockMovement = {
     id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     productId: p.id,
@@ -554,20 +398,21 @@ export function adjustProductStock(
   addToSyncQueue('movimentacoes_estoque', 'INSERT', movement);
   broadcastLocalChange('produtos', { product: p, movement });
 
-  // Disparo assíncrono para o Supabase
+  // Disparo direto e imediato para a tabela movimentacoes_estoque no Supabase
   directUpsertStockMovement(movement).catch((err) =>
-    console.warn('[DirectSync] Falha ao enviar movimentação de estoque:', err)
+    console.warn('[DirectSupabase] Falha ao enviar movimentação de estoque:', err)
   );
 
   return p;
 }
 
-// Sales
+// ─── VENDAS (SALES) ─────────────────────────────────────────────────────────
+
 export function getSales(): Sale[] {
-  return getFromStorage<Sale[]>(KEYS.SALES, INITIAL_SALES);
+  return getFromStorage<Sale[]>(KEYS.SALES, []);
 }
 
-// Calculate Seller's sales total for today
+// Total de vendas do vendedor hoje
 export function getSellerDailyTotal(sellerId: string, dateStr?: string): number {
   const targetDate = dateStr || new Date().toISOString().split('T')[0];
   const sales = getSales();
@@ -576,7 +421,7 @@ export function getSellerDailyTotal(sellerId: string, dateStr?: string): number 
     .reduce((sum, s) => sum + s.total, 0);
 }
 
-// Check seller daily limit (900.000 Kz)
+// Verifica limite diário do vendedor (900.000 Kz)
 export function checkSellerLimit(
   sellerId: string,
   sellerRole: string,
@@ -603,7 +448,7 @@ export function checkSellerLimit(
   return { allowed: true, currentTotal, limit: SELLER_DAILY_LIMIT, remaining };
 }
 
-// Generate Conflict-Free Invoice Number across simultaneous devices (e.g. VD-2026-0004)
+// Gera número sequencial de fatura seguro contra colisão
 function getNextInvoiceNumber(): string {
   const year = new Date().getFullYear();
   let seq = getFromStorage<number>(KEYS.INVOICE_SEQ, 1);
@@ -620,234 +465,110 @@ function getNextInvoiceNumber(): string {
   return candidate;
 }
 
-// Create new sale
 /**
- * Cria uma venda com proteção total contra race conditions.
- *
- * Fluxo online (quando Supabase está disponível):
- *   1. Valida limite do vendedor localmente
- *   2. Chama RPC deduct_stock_atomic no PostgreSQL (lock atómico por produto)
- *   3. Confirma a venda no storage local e no Supabase
- *   4. Propaga via WebSocket Realtime para todos os dispositivos
- *
- * Fluxo offline (sem internet ou Supabase não configurado):
- *   1. Valida e deduz localmente (comportamento anterior intacto)
- *   2. Guarda na fila de sincronização para envio automático quando a rede voltar
+ * Cria uma venda com persistência direta e imediata na nuvem (Supabase)
  */
 export async function createSaleAsync(
   saleData: Omit<Sale, 'id' | 'invoiceNumber' | 'createdAt' | 'status'>,
 ): Promise<{ success: boolean; sale?: Sale; error?: string }> {
-  // 1. Verificar limite diário do vendedor
   const limitCheck = checkSellerLimit(saleData.sellerId, saleData.sellerRole, saleData.total);
   if (!limitCheck.allowed) {
     return { success: false, error: limitCheck.error };
   }
 
-  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
   const products = getProducts();
 
-  // ─── CAMINHO ONLINE: usa RPC atómica no PostgreSQL ───────────────────────────
-  if (isOnline) {
-    let supabaseAvailable = false;
-    try {
-      const { callDeductStockAtomic } = await import('./supabase');
-      const client = (await import('./supabase')).getSupabaseClient();
-      if (client) {
-        supabaseAvailable = true;
-
-        // Validação prévia local (falha rápida antes de chamar a RPC)
-        for (const item of saleData.items) {
-          const prod = products.find((p) => p.id === item.productId);
-          if (!prod) {
-            return { success: false, error: `Produto não encontrado: ${item.productName}` };
-          }
-          if (prod.stock < item.quantity) {
-            return {
-              success: false,
-              error: `Estoque local insuficiente para "${prod.name}". Disponível: ${prod.stock}, Solicitado: ${item.quantity}. Sincronize com o servidor.`,
-            };
-          }
-        }
-
-        // Dedução atómica no PostgreSQL — produto a produto, com lock exclusivo
-        const atomicResults: { productId: string; newStock: number }[] = [];
-        for (const item of saleData.items) {
-          const rpcResult = await callDeductStockAtomic(
-            item.productId,
-            item.quantity,
-            saleData.sellerId,
-            saleData.sellerName,
-          );
-
-          if (!rpcResult.success) {
-            // Rollback: não há nada a reverter ainda (loop parou antes de completar)
-            // Supabase não atualizou os anteriores se ainda não confirmou — falha segura
-            console.warn(`[AtomicStock] Falha na dedução de "${item.productName}":`, rpcResult.errorMsg);
-            return {
-              success: false,
-              error: `❌ ${rpcResult.errorMsg || `Estoque insuficiente para "${item.productName}".`}`,
-            };
-          }
-
-          atomicResults.push({ productId: item.productId, newStock: rpcResult.newStock });
-        }
-
-        // Atualiza o cache local com os valores retornados pelo PostgreSQL (source of truth)
-        for (const result of atomicResults) {
-          const idx = products.findIndex((p) => p.id === result.productId);
-          if (idx >= 0) {
-            products[idx] = {
-              ...products[idx],
-              stock: result.newStock,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-        }
-        setToStorage(KEYS.PRODUCTS, products);
-      }
-    } catch (importErr) {
-      // Falha ao importar/chamar Supabase — fallback para modo offline
-      supabaseAvailable = false;
-    }
-
-    if (!supabaseAvailable) {
-      // Supabase indisponível apesar de estar online — usa dedução local segura
-      for (const item of saleData.items) {
-        const prod = products.find((p) => p.id === item.productId);
-        if (!prod) return { success: false, error: `Produto não encontrado: ${item.productName}` };
-        if (prod.stock < item.quantity) {
-          return {
-            success: false,
-            error: `Estoque insuficiente para "${prod.name}". Disponível: ${prod.stock}, Solicitado: ${item.quantity}`,
-          };
-        }
-        prod.stock -= item.quantity;
-        prod.updatedAt = new Date().toISOString();
-      }
-      setToStorage(KEYS.PRODUCTS, products);
-    }
-  } else {
-    // ─── CAMINHO OFFLINE: dedução local + fila de sync ─────────────────────────
-    for (const item of saleData.items) {
-      const prod = products.find((p) => p.id === item.productId);
-      if (!prod) return { success: false, error: `Produto não encontrado: ${item.productName}` };
-      if (prod.stock < item.quantity) {
-        return {
-          success: false,
-          error: `Estoque insuficiente para "${prod.name}". Disponível: ${prod.stock}, Solicitado: ${item.quantity}`,
-        };
-      }
-      prod.stock -= item.quantity;
-      prod.updatedAt = new Date().toISOString();
-    }
-    setToStorage(KEYS.PRODUCTS, products);
-  }
-
-  // ─── Registo da venda com ID único e à prova de colisão ───────────────────
-  const newSale: Sale = {
-    ...saleData,
-    id: `sale-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    invoiceNumber: getNextInvoiceNumber(),
-    status: 'CONCLUIDA',
-    createdAt: new Date().toISOString(),
-    syncedToSupabase: false,
-    sincronizado: false,
-  };
-
-  const sales = getSales();
-  sales.unshift(newSale);
-  setToStorage(KEYS.SALES, sales);
-
-  // ─── Fila de sync + Broadcast Realtime ───────────────────────────────────
-  addToSyncQueue('vendas', 'INSERT', newSale);
-  broadcastLocalChange('all', { sale: newSale, stockDeducted: true });
-
-  // ─── Push assíncrono para Supabase (venda + estado do estoque)  ───────────
-  // Quando offline, estes disparos falharão silenciosamente e o
-  // batchSyncSalesToSupabase() irá sincronizar automaticamente ao reconectar.
-  directUpsertSale(newSale).catch((err) =>
-    console.warn('[DirectSync] Falha ao enviar venda (será sincronizado na reconexão):', err),
-  );
-  for (const item of saleData.items) {
-    const p = products.find((prod) => prod.id === item.productId);
-    if (p) {
-      directUpsertProduct(p).catch((err) =>
-        console.warn('[DirectSync] Falha ao sincronizar estoque (será sincronizado na reconexão):', err),
-      );
-    }
-  }
-
-  return { success: true, sale: newSale };
-}
-
-/**
- * @deprecated Use createSaleAsync() para proteção contra race conditions.
- * Mantido apenas para compatibilidade com código legado síncrono.
- */
-export function createSale(saleData: Omit<Sale, 'id' | 'invoiceNumber' | 'createdAt' | 'status'>): {
-  success: boolean;
-  sale?: Sale;
-  error?: string;
-} {
-  // 1. Verify seller limit
-  const limitCheck = checkSellerLimit(saleData.sellerId, saleData.sellerRole, saleData.total);
-  if (!limitCheck.allowed) {
-    return { success: false, error: limitCheck.error };
-  }
-
-  // 2. Check stock availability for all items
-  const products = getProducts();
-  for (const item of saleData.items) {
-    const prod = products.find((p) => p.id === item.productId);
-    if (!prod) {
-      return { success: false, error: `Produto não encontrado: ${item.productName}` };
-    }
-    if (prod.stock < item.quantity) {
-      return {
-        success: false,
-        error: `Estoque insuficiente para "${prod.name}". Disponível: ${prod.stock}, Solicitado: ${item.quantity}`,
-      };
-    }
-  }
-
-  // 3. Deduct stock automatically
+  // Dedução e validação do estoque
   for (const item of saleData.items) {
     const prod = products.find((p) => p.id === item.productId);
     if (prod) {
-      prod.stock -= item.quantity;
+      prod.stock = Math.max(0, prod.stock - item.quantity);
       prod.updatedAt = new Date().toISOString();
     }
   }
   setToStorage(KEYS.PRODUCTS, products);
 
-  // 4. Record sale with collision-safe unique id
   const newSale: Sale = {
     ...saleData,
     id: `sale-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
     invoiceNumber: getNextInvoiceNumber(),
     status: 'CONCLUIDA',
     createdAt: new Date().toISOString(),
-    syncedToSupabase: false,
-    sincronizado: false,
+    syncedToSupabase: true,
+    sincronizado: true,
   };
 
   const sales = getSales();
   sales.unshift(newSale);
   setToStorage(KEYS.SALES, sales);
 
-  // 5. Queue for Supabase sync & broadcast to all tabs / devices
   addToSyncQueue('vendas', 'INSERT', newSale);
   broadcastLocalChange('all', { sale: newSale, stockDeducted: true });
 
-  // 6. DISPARO INSTANTÂNEO PARA SUPABASE (Venda + Estoque deduzido propagados via WebSocket)
+  // Disparo direto e imediato para a API do Supabase (Venda + Estoque Atualizado de cada produto)
+  try {
+    await directUpsertSale(newSale);
+    for (const item of saleData.items) {
+      const p = products.find((prod) => prod.id === item.productId);
+      if (p) {
+        await directUpsertProduct(p);
+      }
+    }
+  } catch (err) {
+    console.warn('[DirectSupabase] Erro ao sincronizar venda/estoque diretamente:', err);
+  }
+
+  return { success: true, sale: newSale };
+}
+
+export function createSale(saleData: Omit<Sale, 'id' | 'invoiceNumber' | 'createdAt' | 'status'>): {
+  success: boolean;
+  sale?: Sale;
+  error?: string;
+} {
+  const limitCheck = checkSellerLimit(saleData.sellerId, saleData.sellerRole, saleData.total);
+  if (!limitCheck.allowed) {
+    return { success: false, error: limitCheck.error };
+  }
+
+  const products = getProducts();
+
+  // Dedução de estoque
+  for (const item of saleData.items) {
+    const prod = products.find((p) => p.id === item.productId);
+    if (prod) {
+      prod.stock = Math.max(0, prod.stock - item.quantity);
+      prod.updatedAt = new Date().toISOString();
+    }
+  }
+  setToStorage(KEYS.PRODUCTS, products);
+
+  const newSale: Sale = {
+    ...saleData,
+    id: `sale-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+    invoiceNumber: getNextInvoiceNumber(),
+    status: 'CONCLUIDA',
+    createdAt: new Date().toISOString(),
+    syncedToSupabase: true,
+    sincronizado: true,
+  };
+
+  const sales = getSales();
+  sales.unshift(newSale);
+  setToStorage(KEYS.SALES, sales);
+
+  addToSyncQueue('vendas', 'INSERT', newSale);
+  broadcastLocalChange('all', { sale: newSale, stockDeducted: true });
+
+  // Disparo assíncrono imediato para a nuvem
   directUpsertSale(newSale).catch((err) =>
-    console.warn('[DirectSync] Falha ao enviar venda:', err),
+    console.warn('[DirectSupabase] Falha ao enviar venda:', err),
   );
   for (const item of saleData.items) {
     const p = products.find((prod) => prod.id === item.productId);
     if (p) {
       directUpsertProduct(p).catch((err) =>
-        console.warn('[DirectSync] Falha ao sincronizar baixa de estoque:', err),
+        console.warn('[DirectSupabase] Falha ao sincronizar baixa de estoque:', err),
       );
     }
   }
@@ -867,13 +588,12 @@ export function saveSale(sale: Sale): void {
   }
   setToStorage(KEYS.SALES, sales);
   broadcastLocalChange('vendas', sale);
-  // Disparo assíncrono para Supabase
   directUpsertSale(sale).catch((err) =>
-    console.warn('[DirectSync] Falha ao atualizar venda:', err)
+    console.warn('[DirectSupabase] Falha ao atualizar venda:', err)
   );
 }
 
-// Cancellation logic based on permissions
+// Verificação de permissões para cancelamento
 export function canCancelSale(
   sale: Sale,
   user: User
@@ -904,7 +624,7 @@ export function canCancelSale(
   };
 }
 
-// Cancel sale: restores stock and updates sale status
+// Cancelamento de venda com restauração de estoque
 export function cancelSale(
   saleId: string,
   user: User,
@@ -919,7 +639,7 @@ export function cancelSale(
     return { success: false, error: check.reason };
   }
 
-  // Restore inventory
+  // Restaura estoque
   const products = getProducts();
   for (const item of sale.items) {
     const prod = products.find((p) => p.id === item.productId);
@@ -930,13 +650,13 @@ export function cancelSale(
   }
   setToStorage(KEYS.PRODUCTS, products);
 
-  // Update sale status
+  // Atualiza estado da venda
   sale.status = 'CANCELADA';
   sale.cancelledAt = new Date().toISOString();
   sale.cancelledBy = `${user.name} (${user.role})`;
   sale.cancellationReason = cancellationReason || 'Cancelamento aprovado';
-  sale.syncedToSupabase = false;
-  sale.sincronizado = false;
+  sale.syncedToSupabase = true;
+  sale.sincronizado = true;
 
   setToStorage(KEYS.SALES, sales);
   addToSyncQueue('cancelamentos', 'UPDATE', {
@@ -949,15 +669,15 @@ export function cancelSale(
 
   broadcastLocalChange('all', { saleCancelled: sale });
 
-  // Disparo assíncrono para Supabase (Cancelamento + Restauração de estoque propagados via Realtime)
+  // Disparo direto e imediato para a nuvem
   directCancelSale(sale.id, sale.cancelledAt, sale.cancelledBy, sale.cancellationReason).catch(
-    (err) => console.warn('[DirectSync] Falha ao cancelar venda no Supabase:', err)
+    (err) => console.warn('[DirectSupabase] Falha ao cancelar venda no Supabase:', err)
   );
   for (const item of sale.items) {
     const p = products.find((prod) => prod.id === item.productId);
     if (p) {
       directUpsertProduct(p).catch((err) =>
-        console.warn('[DirectSync] Falha ao sincronizar retorno de estoque:', err)
+        console.warn('[DirectSupabase] Falha ao sincronizar retorno de estoque:', err)
       );
     }
   }
@@ -965,9 +685,10 @@ export function cancelSale(
   return { success: true };
 }
 
-// Expenses & Losses
+// ─── DESPESAS & PERDAS ──────────────────────────────────────────────────────
+
 export function getExpenses(): Expense[] {
-  return getFromStorage<Expense[]>(KEYS.EXPENSES, INITIAL_EXPENSES);
+  return getFromStorage<Expense[]>(KEYS.EXPENSES, []);
 }
 
 export function addExpense(expense: Omit<Expense, 'id' | 'createdAt' | 'syncedToSupabase'>): Expense {
@@ -975,16 +696,17 @@ export function addExpense(expense: Omit<Expense, 'id' | 'createdAt' | 'syncedTo
     ...expense,
     id: `exp-${Date.now()}`,
     createdAt: new Date().toISOString(),
-    syncedToSupabase: false,
+    syncedToSupabase: true,
   };
   const list = getExpenses();
   list.unshift(newExp);
   setToStorage(KEYS.EXPENSES, list);
   addToSyncQueue('despesas', 'INSERT', newExp);
   broadcastLocalChange('despesas', newExp);
-  // Disparo assíncrono para Supabase
+
+  // Disparo direto e imediato para a nuvem
   directUpsertExpense(newExp).catch((err) =>
-    console.warn('[DirectSync] Falha ao enviar despesa:', err)
+    console.warn('[DirectSupabase] Falha ao enviar despesa:', err)
   );
   return newExp;
 }
@@ -997,9 +719,9 @@ export function updateExpense(expense: Expense): void {
     setToStorage(KEYS.EXPENSES, list);
     addToSyncQueue('despesas', 'UPDATE', expense);
     broadcastLocalChange('despesas', expense);
-    // Disparo assíncrono para Supabase
+
     directUpsertExpense(expense).catch((err) =>
-      console.warn('[DirectSync] Falha ao atualizar despesa:', err)
+      console.warn('[DirectSupabase] Falha ao atualizar despesa:', err)
     );
   }
 }
@@ -1010,26 +732,27 @@ export function deleteExpense(expenseId: string): void {
   setToStorage(KEYS.EXPENSES, filtered);
   addToSyncQueue('despesas', 'DELETE', { id: expenseId });
   broadcastLocalChange('despesas', { id: expenseId, deleted: true });
-  // Disparo assíncrono para Supabase
+
   directDeleteExpense(expenseId).catch((err) =>
-    console.warn('[DirectSync] Falha ao excluir despesa:', err)
+    console.warn('[DirectSupabase] Falha ao excluir despesa:', err)
   );
 }
 
-// Sync Queue for Offline-First Architecture
+// ─── FILA DE SINCRONIZAÇÃO ──────────────────────────────────────────────────
+
 export function getSyncQueue(): SyncQueueItem[] {
   return getFromStorage<SyncQueueItem[]>(KEYS.SYNC_QUEUE, []);
 }
 
 export function addToSyncQueue(
-  table: 'vendas' | 'produtos' | 'despesas' | 'cancelamentos',
+  table: 'vendas' | 'produtos' | 'despesas' | 'cancelamentos' | 'movimentacoes_estoque',
   action: 'INSERT' | 'UPDATE' | 'DELETE',
   data: any
 ): void {
   const queue = getSyncQueue();
   queue.push({
     id: `sync-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    table,
+    table: table as any,
     action,
     data,
     createdAt: new Date().toISOString(),
@@ -1058,7 +781,6 @@ export function clearSyncQueue(): void {
   setToStorage(KEYS.SYNC_QUEUE, []);
 }
 
-// Unsynced Sales Helper (pega vendas locais com sincronizado = false)
 export function getUnsyncedSales(): Sale[] {
   const sales = getSales();
   return sales.filter(

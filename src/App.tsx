@@ -8,7 +8,18 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SalesHistory } from './components/SalesHistory';
 import { ExpensesManagement } from './components/ExpensesManagement';
 import { PDFReportModal } from './components/PDFReportModal';
-import { getExpenses, getProducts, getSales, initStorage, createSale, saveSale } from './lib/storage';
+import {
+  getExpenses,
+  getProducts,
+  getSales,
+  initStorage,
+  createSale,
+  createSaleAsync,
+  saveSale,
+  fetchProductsFromSupabase,
+  fetchSalesFromSupabase,
+  fetchExpensesFromSupabase,
+} from './lib/storage';
 import { printThermalReceipt } from './lib/thermalPrinter';
 import { subscribeToRealtimeSync, broadcastLocalChange } from './lib/realtimeSync';
 import { Expense, Product, Sale, User } from './types';
@@ -72,21 +83,47 @@ export default function App() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  // Carregar dados
-  const refreshData = () => {
+  // Carregar dados (Cache Local + Nuvem Supabase Direta)
+  const refreshData = async (fromCloud: boolean = true) => {
+    // 1. Atualização instantânea a partir do cache local
     setProducts(getProducts());
     setSales(getSales());
     setExpenses(getExpenses());
+
+    // 2. Leitura direta e imediata das tabelas do Supabase
+    if (fromCloud) {
+      try {
+        const [cloudProducts, cloudSales, cloudExpenses] = await Promise.all([
+          fetchProductsFromSupabase(),
+          fetchSalesFromSupabase(),
+          fetchExpensesFromSupabase(),
+        ]);
+        if (cloudProducts) setProducts(cloudProducts);
+        if (cloudSales) setSales(cloudSales);
+        if (cloudExpenses) setExpenses(cloudExpenses);
+      } catch (err) {
+        console.warn('[App] Falha ao sincronizar dados da nuvem:', err);
+      }
+    }
   };
 
   useEffect(() => {
     initStorage();
-    refreshData();
+    refreshData(true);
 
-    // Sincronização em tempo real reativa (BroadcastChannel entre abas + Supabase)
+    // Sincronização em tempo real reativa (BroadcastChannel entre abas + Supabase Realtime)
     const unsubscribe = subscribeToRealtimeSync(() => {
-      refreshData();
+      refreshData(true);
     });
+
+    // Reconciliação imediata quando a janela ganha foco ou visibilidade (ex: alternando entre Chrome e Edge)
+    const handleFocusOrVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData(true);
+      }
+    };
+    window.addEventListener('focus', handleFocusOrVisibility);
+    document.addEventListener('visibilitychange', handleFocusOrVisibility);
 
     // Listener para alertas de erro de API Supabase
     const handleApiError = (event: Event) => {
@@ -99,18 +136,14 @@ export default function App() {
 
     return () => {
       unsubscribe();
+      window.removeEventListener('focus', handleFocusOrVisibility);
+      document.removeEventListener('visibilitychange', handleFocusOrVisibility);
       window.removeEventListener('kwanza_api_error', handleApiError);
     };
   }, []);
 
-  // Lista de produtos para exibição na frente de caixa
-  const produtosExibicao = products.length > 0
-    ? products
-    : [
-        { id: '1', name: 'Cerveja Cuca Lata 330ml', price: 650, costPrice: 450, stock: 85, minStock: 25, barcode: '5601234001', category: 'Bebidas', unit: 'lata', updatedAt: new Date().toISOString() },
-        { id: '2', name: 'Refrigerante Blue Polpa 330ml', price: 500, costPrice: 320, stock: 60, minStock: 20, barcode: '5601234002', category: 'Bebidas', unit: 'lata', updatedAt: new Date().toISOString() },
-        { id: '3', name: 'Bolacha Maria Campina', price: 450, costPrice: 280, stock: 45, minStock: 15, barcode: '5601234003', category: 'Alimentação', unit: 'pct', updatedAt: new Date().toISOString() },
-      ];
+  // Lista de produtos para exibição na frente de caixa (direto da nuvem)
+  const produtosExibicao = products;
 
   // Filtro dinâmico da Frente de Caixa por Nome, Código de Barras e Categoria
   const produtosExibicaoFiltrados = produtosExibicao.filter((p) => {

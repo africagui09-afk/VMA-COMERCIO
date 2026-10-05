@@ -57,97 +57,64 @@ export async function pullAndMergeRemoteData(): Promise<SyncSummary> {
   try {
     // 1. Reconcilia Produtos
     const { data: remoteProducts, error: prodErr } = await client.from('produtos').select('*');
-    if (!prodErr && Array.isArray(remoteProducts) && remoteProducts.length > 0) {
-      const localProducts = getProducts();
-      const mergedMap = new Map<string, Product>();
+    if (!prodErr && Array.isArray(remoteProducts)) {
+      const remoteList: Product[] = remoteProducts.map((r: any) => ({
+        id: String(r.id),
+        name: r.name || 'Sem nome',
+        barcode: r.barcode || '',
+        category: r.category || 'Geral',
+        price: Number(r.price) || 0,
+        costPrice: Number(r.costPrice) || 0,
+        stock: Number(r.stock) || 0,
+        minStock: Number(r.minStock) || 5,
+        unit: r.unit || 'un',
+        imageUrl: r.imageUrl || undefined,
+        updatedAt: r.updatedAt || new Date().toISOString(),
+      }));
 
-      localProducts.forEach((p) => mergedMap.set(p.id, p));
-
-      remoteProducts.forEach((r: any) => {
-        const remoteProd: Product = {
-          id: String(r.id),
-          name: r.name || 'Sem nome',
-          barcode: r.barcode || '',
-          category: r.category || 'Geral',
-          price: Number(r.price) || 0,
-          costPrice: Number(r.costPrice) || 0,
-          stock: Number(r.stock) || 0,
-          minStock: Number(r.minStock) || 5,
-          unit: r.unit || 'un',
-          imageUrl: r.imageUrl || undefined,
-          updatedAt: r.updatedAt || new Date().toISOString(),
-        };
-
-        const existing = mergedMap.get(remoteProd.id);
-        if (!existing || new Date(remoteProd.updatedAt) >= new Date(existing.updatedAt)) {
-          mergedMap.set(remoteProd.id, remoteProd);
-        }
-      });
-
-      const updatedList = Array.from(mergedMap.values());
-      setToStorage(KEYS.PRODUCTS, updatedList);
-      summary.produtos = updatedList.length;
+      setToStorage(KEYS.PRODUCTS, remoteList);
+      summary.produtos = remoteList.length;
     }
 
     // 2. Reconcilia Despesas
     const { data: remoteExpenses, error: expErr } = await client.from('despesas').select('*');
-    if (!expErr && Array.isArray(remoteExpenses) && remoteExpenses.length > 0) {
-      const localExpenses = getExpenses();
-      const mergedExp = new Map<string, Expense>();
+    if (!expErr && Array.isArray(remoteExpenses)) {
+      const expList: Expense[] = remoteExpenses.map((r: any) => ({
+        id: String(r.id),
+        description: r.description || '',
+        type: r.type || 'FIXA',
+        category: r.category || 'Outros',
+        amount: Number(r.amount) || 0,
+        dueDate: r.dueDate || r.date,
+        date: r.date || new Date().toISOString().split('T')[0],
+        status: r.status || 'PAGO',
+        registeredBy: r.registeredBy || 'Sistema',
+        notes: r.notes || undefined,
+        createdAt: r.createdAt || r.created_at || new Date().toISOString(),
+      }));
 
-      localExpenses.forEach((e) => mergedExp.set(e.id, e));
-
-      remoteExpenses.forEach((r: any) => {
-        const exp: Expense = {
-          id: String(r.id),
-          description: r.description || '',
-          type: r.type || 'FIXA',
-          category: r.category || 'Outros',
-          amount: Number(r.amount) || 0,
-          dueDate: r.dueDate || r.date,
-          date: r.date || new Date().toISOString().split('T')[0],
-          status: r.status || 'PAGO',
-          registeredBy: r.registeredBy || 'Sistema',
-          notes: r.notes || undefined,
-          createdAt: r.createdAt || r.created_at || new Date().toISOString(),
-        };
-        mergedExp.set(exp.id, exp);
-      });
-
-      const updatedExpList = Array.from(mergedExp.values());
-      setToStorage(KEYS.EXPENSES, updatedExpList);
-      summary.despesas = updatedExpList.length;
+      setToStorage(KEYS.EXPENSES, expList);
+      summary.despesas = expList.length;
     }
 
     // 3. Reconcilia Clientes de Fiado e Histórico
     const { data: remoteFiado, error: fiadoErr } = await client.from('clientes_fiado').select('*');
-    if (!fiadoErr && Array.isArray(remoteFiado) && remoteFiado.length > 0) {
-      const localClients = getClientesLocais();
-      const clientMap = new Map<string, ClienteFiado>();
+    if (!fiadoErr && Array.isArray(remoteFiado)) {
+      const cliList: ClienteFiado[] = remoteFiado.map((r: any) => ({
+        id: String(r.id),
+        nome: r.nome || '',
+        telefone: r.telefone || '',
+        nif: r.nif || '',
+        endereco: r.endereco || '',
+        limite_credito: Number(r.limite_credito) || 0,
+        saldo_devedor: Number(r.saldo_devedor) || 0,
+        status: r.status || 'ATIVO',
+        criado_em: r.criado_em || r.created_at || new Date().toISOString(),
+        atualizado_em: r.atualizado_em || r.updated_at || new Date().toISOString(),
+      }));
 
-      localClients.forEach((c) => clientMap.set(c.id, c));
-
-      remoteFiado.forEach((r: any) => {
-        const cli: ClienteFiado = {
-          id: String(r.id),
-          nome: r.nome || '',
-          telefone: r.telefone || '',
-          nif: r.nif || '',
-          endereco: r.endereco || '',
-          limite_credito: Number(r.limite_credito) || 0,
-          saldo_devedor: Number(r.saldo_devedor) || 0,
-          status: r.status || 'ATIVO',
-          criado_em: r.criado_em || r.created_at || new Date().toISOString(),
-          atualizado_em: r.atualizado_em || r.updated_at || new Date().toISOString(),
-        };
-        const existing = clientMap.get(cli.id);
-        if (!existing || new Date(cli.atualizado_em) >= new Date(existing.atualizado_em)) {
-          clientMap.set(cli.id, cli);
-        }
-      });
-
-      saveClientesLocais(Array.from(clientMap.values()));
-      summary.fiados = clientMap.size;
+      saveClientesLocais(cliList);
+      summary.fiados = cliList.length;
     }
 
     // 4. Reconcilia Vendas
@@ -155,48 +122,37 @@ export async function pullAndMergeRemoteData(): Promise<SyncSummary> {
       .from('vendas')
       .select('*')
       .order('createdAt', { ascending: false })
-      .limit(150);
+      .limit(250);
 
-    if (!salesErr && Array.isArray(remoteSales) && remoteSales.length > 0) {
-      const localSales = getSales();
-      const salesMap = new Map<string, Sale>();
+    if (!salesErr && Array.isArray(remoteSales)) {
+      const salesList: Sale[] = remoteSales.map((r: any) => ({
+        id: String(r.id),
+        invoiceNumber: r.invoiceNumber || '',
+        items: Array.isArray(r.items) ? r.items : [],
+        subtotal: Number(r.subtotal) || 0,
+        discountTotal: Number(r.discountTotal) || 0,
+        total: Number(r.total) || 0,
+        totalCost: Number(r.totalCost) || 0,
+        payments: Array.isArray(r.payments) ? r.payments : [],
+        amountReceived: r.amountReceived !== null && r.amountReceived !== undefined ? Number(r.amountReceived) : undefined,
+        change: Number(r.change) || 0,
+        sellerId: r.sellerId || '',
+        sellerName: r.sellerName || '',
+        sellerRole: r.sellerRole || 'VENDEDOR',
+        customerName: r.customerName || undefined,
+        customerNif: r.customerNif || undefined,
+        notes: r.notes || undefined,
+        status: r.status || 'CONCLUIDA',
+        cancelledAt: r.cancelledAt || undefined,
+        cancelledBy: r.cancelledBy || undefined,
+        cancellationReason: r.cancellationReason || undefined,
+        createdAt: r.createdAt || new Date().toISOString(),
+        syncedToSupabase: true,
+        sincronizado: true,
+      }));
 
-      localSales.forEach((s) => salesMap.set(s.id, s));
-
-      remoteSales.forEach((r: any) => {
-        const sale: Sale = {
-          id: String(r.id),
-          invoiceNumber: r.invoiceNumber || '',
-          items: Array.isArray(r.items) ? r.items : [],
-          subtotal: Number(r.subtotal) || 0,
-          discountTotal: Number(r.discountTotal) || 0,
-          total: Number(r.total) || 0,
-          totalCost: Number(r.totalCost) || 0,
-          payments: Array.isArray(r.payments) ? r.payments : [],
-          amountReceived: r.amountReceived !== null && r.amountReceived !== undefined ? Number(r.amountReceived) : undefined,
-          change: Number(r.change) || 0,
-          sellerId: r.sellerId || '',
-          sellerName: r.sellerName || '',
-          sellerRole: r.sellerRole || 'VENDEDOR',
-          customerName: r.customerName || undefined,
-          customerNif: r.customerNif || undefined,
-          notes: r.notes || undefined,
-          status: r.status || 'CONCLUIDA',
-          cancelledAt: r.cancelledAt || undefined,
-          cancelledBy: r.cancelledBy || undefined,
-          cancellationReason: r.cancellationReason || undefined,
-          createdAt: r.createdAt || new Date().toISOString(),
-          syncedToSupabase: true,
-          sincronizado: true,
-        };
-        salesMap.set(sale.id, sale);
-      });
-
-      const updatedSales = Array.from(salesMap.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setToStorage(KEYS.SALES, updatedSales);
-      summary.vendas = updatedSales.length;
+      setToStorage(KEYS.SALES, salesList);
+      summary.vendas = salesList.length;
     }
 
     // 5. Reconcilia Movimentações de Estoque
@@ -204,37 +160,26 @@ export async function pullAndMergeRemoteData(): Promise<SyncSummary> {
       .from('movimentacoes_estoque')
       .select('*')
       .order('createdAt', { ascending: false })
-      .limit(100);
+      .limit(200);
 
-    if (!movsErr && Array.isArray(remoteMovs) && remoteMovs.length > 0) {
-      const localMovs = getStockMovements();
-      const movsMap = new Map<string, StockMovement>();
+    if (!movsErr && Array.isArray(remoteMovs)) {
+      const movsList: StockMovement[] = remoteMovs.map((r: any) => ({
+        id: String(r.id),
+        productId: String(r.productId || r.produtoId || ''),
+        tipo: r.type || r.tipo || 'AJUSTE',
+        quantity: Number(r.quantity || r.quantidade) || 0,
+        previousStock: Number(r.previousStock || r.estoqueAnterior) || 0,
+        resultingStock: Number(r.resultingStock || r.estoqueResultante) || 0,
+        reason: r.reason || r.motivo,
+        userId: String(r.userId || r.responsavelId || ''),
+        userName: String(r.userName || r.responsavelNome || 'Sistema'),
+        createdAt: r.createdAt || r.criadoEm || new Date().toISOString(),
+        updatedAt: r.updatedAt || r.atualizadoEm || new Date().toISOString(),
+        sincronizado: true,
+      }));
 
-      localMovs.forEach((m) => movsMap.set(m.id, m));
-
-      remoteMovs.forEach((r: any) => {
-        const mov: StockMovement = {
-          id: String(r.id),
-          productId: String(r.productId || r.produtoId || ''),
-          tipo: r.type || r.tipo || 'AJUSTE',
-          quantity: Number(r.quantity || r.quantidade) || 0,
-          previousStock: Number(r.previousStock || r.estoqueAnterior) || 0,
-          resultingStock: Number(r.resultingStock || r.estoqueResultante) || 0,
-          reason: r.reason || r.motivo,
-          userId: String(r.userId || r.responsavelId || ''),
-          userName: String(r.userName || r.responsavelNome || 'Sistema'),
-          createdAt: r.createdAt || r.criadoEm || new Date().toISOString(),
-          updatedAt: r.updatedAt || r.atualizadoEm || new Date().toISOString(),
-          sincronizado: true,
-        };
-        movsMap.set(mov.id, mov);
-      });
-
-      const updatedMovs = Array.from(movsMap.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setToStorage(KEYS.STOCK_MOVEMENTS, updatedMovs);
-      summary.movimentacoes = updatedMovs.length;
+      setToStorage(KEYS.STOCK_MOVEMENTS, movsList);
+      summary.movimentacoes = movsList.length;
     }
   } catch (err) {
     console.warn('Erro ao reconciliar dados com Supabase:', err);
