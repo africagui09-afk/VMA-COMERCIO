@@ -43,11 +43,24 @@ export function useRealtimeProducts(): UseRealtimeProductsReturn {
       try {
         const { data, error } = await supabase
           .from('produtos')
-          .select('*')
-          .order('name', { ascending: true });
+          .select('*');
 
         if (!error && Array.isArray(data)) {
-          setProducts(data as Product[]);
+          const mapped: Product[] = data.map((r: any) => ({
+            id: String(r.id),
+            name: r.name || r.nome || 'Sem nome',
+            barcode: r.barcode || '',
+            category: r.category || r.categoria || 'Geral',
+            price: Number(r.price ?? r.preco ?? 0),
+            costPrice: Number(r.costPrice ?? r.preco_custo ?? r.precoCusto ?? 0),
+            stock: Number(r.stock ?? r.estoque ?? 0),
+            minStock: Number(r.minStock ?? r.estoque_minimo ?? r.estoqueMinimo ?? 5),
+            unit: r.unit || r.unidade || 'un',
+            imageUrl: r.imageUrl || r.imagem_url || undefined,
+            updatedAt: r.updatedAt || r.atualizado_em || new Date().toISOString(),
+          }));
+          mapped.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          setProducts(mapped);
         } else {
           refreshFromLocal();
         }

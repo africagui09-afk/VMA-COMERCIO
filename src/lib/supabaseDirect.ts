@@ -1,4 +1,4 @@
-import { getSupabaseClient, notifyApiError, sanitizeStockMovementForSupabase } from './supabase';
+import { getSupabaseClient, notifyApiError, sanitizeProductForSupabase, sanitizeStockMovementForSupabase } from './supabase';
 import { Sale, Product, Expense, StockMovement } from '../types';
 
 /**
@@ -14,21 +14,20 @@ export async function directUpsertProduct(product: Product): Promise<boolean> {
   if (!client || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
 
   try {
-    const payload = {
-      id: String(product.id),
-      name: product.name || 'Sem nome',
-      barcode: product.barcode || '',
-      category: product.category || 'Geral',
-      price: Number(product.price) || 0,
-      costPrice: Number(product.costPrice) || 0,
-      stock: Number(product.stock) || 0,
-      minStock: Number(product.minStock) || 5,
-      unit: product.unit || 'un',
-      imageUrl: product.imageUrl || null,
-      updatedAt: product.updatedAt || new Date().toISOString(),
-    };
+    const payload = sanitizeProductForSupabase(product);
 
-    const { error } = await client.from('produtos').upsert(payload, { onConflict: 'id' });
+    let { error } = await client.from('produtos').upsert(payload, { onConflict: 'id' });
+
+    // Fallback de compatibilidade automática caso o banco ainda use 'nome' em vez de 'name'
+    if (error && error.message && error.message.includes("'name'")) {
+      console.warn('[DirectSupabase] Coluna "name" não encontrada. Aplicando fallback com "nome":', error.message);
+      const fallbackPayload: any = { ...payload };
+      delete fallbackPayload.name;
+      fallbackPayload.nome = payload.name;
+      const res = await client.from('produtos').upsert(fallbackPayload, { onConflict: 'id' });
+      error = res.error;
+    }
+
     if (error) {
       console.warn('[DirectSupabase] Erro ao sincronizar produto:', error.message);
       notifyApiError('Erro ao atualizar produto no servidor', error.message);

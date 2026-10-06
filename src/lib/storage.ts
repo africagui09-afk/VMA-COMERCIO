@@ -123,7 +123,7 @@ export async function fetchProductsFromSupabase(): Promise<Product[]> {
     if (!client) {
       return getFromStorage<Product[]>(KEYS.PRODUCTS, []);
     }
-    const { data, error } = await client.from('produtos').select('*').order('name', { ascending: true });
+    const { data, error } = await client.from('produtos').select('*');
     if (error) {
       console.warn('[Supabase Direct] Erro ao buscar produtos:', error.message);
       return getFromStorage<Product[]>(KEYS.PRODUCTS, []);
@@ -131,17 +131,18 @@ export async function fetchProductsFromSupabase(): Promise<Product[]> {
     if (Array.isArray(data)) {
       const mapped: Product[] = data.map((r: any) => ({
         id: String(r.id),
-        name: r.name || 'Sem nome',
+        name: r.name || r.nome || 'Sem nome',
         barcode: r.barcode || '',
-        category: r.category || 'Geral',
-        price: Number(r.price) || 0,
-        costPrice: Number(r.costPrice) || 0,
-        stock: Number(r.stock) || 0,
-        minStock: Number(r.minStock) || 5,
-        unit: r.unit || 'un',
-        imageUrl: r.imageUrl || undefined,
-        updatedAt: r.updatedAt || new Date().toISOString(),
+        category: r.category || r.categoria || 'Geral',
+        price: Number(r.price ?? r.preco ?? 0),
+        costPrice: Number(r.costPrice ?? r.preco_custo ?? r.precoCusto ?? 0),
+        stock: Number(r.stock ?? r.estoque ?? 0),
+        minStock: Number(r.minStock ?? r.estoque_minimo ?? r.estoqueMinimo ?? 5),
+        unit: r.unit || r.unidade || 'un',
+        imageUrl: r.imageUrl || r.imagem_url || undefined,
+        updatedAt: r.updatedAt || r.atualizado_em || new Date().toISOString(),
       }));
+      mapped.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setToStorage(KEYS.PRODUCTS, mapped);
       return mapped;
     }

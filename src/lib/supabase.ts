@@ -66,6 +66,27 @@ export function sanitizeStockMovementForSupabase(mov: any) {
 }
 
 /**
+ * Sanitiza o produto para o schema da tabela public.produtos no Supabase,
+ * garantindo compatibilidade uniforme entre 'name' e 'nome'
+ */
+export function sanitizeProductForSupabase(product: any) {
+  const prodName = product.name || product.nome || 'Sem nome';
+  return {
+    id: String(product.id),
+    name: String(prodName).trim() || 'Sem nome',
+    barcode: String(product.barcode || ''),
+    category: String(product.category || product.categoria || 'Geral'),
+    price: Number(product.price ?? product.preco ?? 0),
+    costPrice: Number(product.costPrice ?? product.preco_custo ?? product.precoCusto ?? 0),
+    stock: Number(product.stock ?? product.estoque ?? 0),
+    minStock: Number(product.minStock ?? product.estoque_minimo ?? product.estoqueMinimo ?? 5),
+    unit: String(product.unit || product.unidade || 'un'),
+    imageUrl: product.imageUrl || product.imagem_url || null,
+    updatedAt: product.updatedAt || product.atualizado_em || new Date().toISOString(),
+  };
+}
+
+/**
  * Obtém o cliente Supabase com prioridade:
  * 1. Variáveis de ambiente VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (Vercel / .env)
  * 2. Configuração manual guardada no localStorage (SupabaseModal)
@@ -273,20 +294,15 @@ export async function batchSyncSalesToSupabase(): Promise<SyncResult> {
           if (error) throw error;
         }
       } else if (item.table === 'produtos') {
-        const prodData = {
-          id: item.data.id,
-          name: item.data.name,
-          barcode: item.data.barcode,
-          category: item.data.category,
-          price: Number(item.data.price) || 0,
-          costPrice: Number(item.data.costPrice) || 0,
-          stock: Number(item.data.stock) || 0,
-          minStock: Number(item.data.minStock) || 5,
-          unit: item.data.unit || 'un',
-          imageUrl: item.data.imageUrl || null,
-          updatedAt: item.data.updatedAt,
-        };
-        const { error } = await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+        const prodData = sanitizeProductForSupabase(item.data);
+        let { error } = await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+        if (error && error.message && error.message.includes("'name'")) {
+          const fallback: any = { ...prodData };
+          delete fallback.name;
+          fallback.nome = prodData.name;
+          const res = await client.from('produtos').upsert(fallback, { onConflict: 'id' });
+          error = res.error;
+        }
         if (error) throw error;
       } else if (item.table === 'movimentacoes_estoque') {
         const movData = sanitizeStockMovementForSupabase(item.data);
@@ -330,20 +346,15 @@ export async function pushProductToSupabase(product: any): Promise<boolean> {
   if (!client || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
 
   try {
-    const prodData = {
-      id: String(product.id),
-      name: product.name || 'Sem nome',
-      barcode: product.barcode || '',
-      category: product.category || 'Geral',
-      price: Number(product.price) || 0,
-      costPrice: Number(product.costPrice) || 0,
-      stock: Number(product.stock) || 0,
-      minStock: Number(product.minStock) || 5,
-      unit: product.unit || 'un',
-      imageUrl: product.imageUrl || null,
-      updatedAt: product.updatedAt || new Date().toISOString(),
-    };
-    const { error } = await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+    const prodData = sanitizeProductForSupabase(product);
+    let { error } = await client.from('produtos').upsert(prodData, { onConflict: 'id' });
+    if (error && error.message && error.message.includes("'name'")) {
+      const fallback: any = { ...prodData };
+      delete fallback.name;
+      fallback.nome = prodData.name;
+      const res = await client.from('produtos').upsert(fallback, { onConflict: 'id' });
+      error = res.error;
+    }
     if (error) {
       console.warn('[Supabase Push] Erro ao sincronizar produto:', error.message);
       return false;
@@ -481,11 +492,11 @@ export async function pushStockMovementToSupabase(mov: StockMovement | any): Pro
 export const syncWithSupabase = batchSyncSalesToSupabase;
 export const forceImmediateBatchSync = batchSyncSalesToSupabase;
 
-// SQL Schema script for Supabase tables com REPLICAÇÃO EM TEMPO REAL ATIVA
 export const SUPABASE_SQL_SCHEMA = `-- ==============================================================================
--- KWANZAPOS: SCRIPT SQL DEFINITIVO DE REPLICAÇÃO EM TEMPO REAL (SUPABASE REALTIME)
--- Execute este script completo no SQL Editor do Painel do Supabase.
--- Garante WebSocket bi-direcional instantâneo (<100ms) entre Desktop, Tablet e Telemóvel.
+-- KWANZAPOS / VMA COMÉRCIO LDA: SCRIPT SQL DEFINITIVO E UNIFICADO
+-- Execute este script no SQL Editor do Painel do Supabase.
+-- Garante a criação de tabelas, migração de colunas faltantes (ALTER TABLE IF NOT EXISTS),
+-- replicação em tempo real (Realtime WebSocket) e recarregamento do schema cache.
 -- ==============================================================================
 
 -- 1. TABELA DE PRODUTOS (ESTOQUE)
@@ -496,12 +507,32 @@ create table if not exists public.produtos (
   category text default 'Geral',
   price numeric not null default 0,
   "costPrice" numeric not null default 0,
-  stock integer not null default 0,
-  "minStock" integer not null default 5,
+  stock numeric not null default 0,
+  "minStock" numeric not null default 5,
   unit text default 'un',
   "imageUrl" text,
   "updatedAt" timestamp with time zone default now()
 );
+
+-- Garantia de colunas caso a tabela 'produtos' já existisse previamente:
+alter table public.produtos add column if not exists name text default 'Sem nome';
+alter table public.produtos add column if not exists barcode text default '';
+alter table public.produtos add column if not exists category text default 'Geral';
+alter table public.produtos add column if not exists price numeric not null default 0;
+alter table public.produtos add column if not exists "costPrice" numeric not null default 0;
+alter table public.produtos add column if not exists stock numeric not null default 0;
+alter table public.produtos add column if not exists "minStock" numeric not null default 5;
+alter table public.produtos add column if not exists unit text default 'un';
+alter table public.produtos add column if not exists "imageUrl" text;
+alter table public.produtos add column if not exists "updatedAt" timestamp with time zone default now();
+
+-- Compatibilidade automática com bancos antigos que usavam 'nome':
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'produtos' and column_name = 'nome') then
+    update public.produtos set name = nome where name is null or name = '' or name = 'Sem nome';
+  end if;
+end $$;
 
 -- 2. TABELA DE VENDAS (FRENTE DE CAIXA E FATURAS)
 create table if not exists public.vendas (
@@ -528,7 +559,56 @@ create table if not exists public.vendas (
   "createdAt" timestamp with time zone default now()
 );
 
--- 3. TABELA DE DESPESAS (GESTÃO FINANCEIRA)
+-- Garantia de colunas caso a tabela 'vendas' já existisse previamente:
+alter table public.vendas add column if not exists "invoiceNumber" text default '';
+alter table public.vendas add column if not exists items jsonb not null default '[]'::jsonb;
+alter table public.vendas add column if not exists subtotal numeric not null default 0;
+alter table public.vendas add column if not exists "discountTotal" numeric default 0;
+alter table public.vendas add column if not exists total numeric not null default 0;
+alter table public.vendas add column if not exists "totalCost" numeric not null default 0;
+alter table public.vendas add column if not exists payments jsonb not null default '[]'::jsonb;
+alter table public.vendas add column if not exists "amountReceived" numeric;
+alter table public.vendas add column if not exists change numeric default 0;
+alter table public.vendas add column if not exists "sellerId" text not null default '';
+alter table public.vendas add column if not exists "sellerName" text not null default '';
+alter table public.vendas add column if not exists "sellerRole" text not null default 'VENDEDOR';
+alter table public.vendas add column if not exists "customerName" text;
+alter table public.vendas add column if not exists "customerNif" text;
+alter table public.vendas add column if not exists notes text;
+alter table public.vendas add column if not exists status text not null default 'CONCLUIDA';
+alter table public.vendas add column if not exists "cancelledAt" timestamp with time zone;
+alter table public.vendas add column if not exists "cancelledBy" text;
+alter table public.vendas add column if not exists "cancellationReason" text;
+alter table public.vendas add column if not exists "createdAt" timestamp with time zone default now();
+
+-- 3. TABELA DE MOVIMENTAÇÕES DE ESTOQUE (HISTÓRICO AUDITÁVEL)
+create table if not exists public.movimentacoes_estoque (
+  id text primary key,
+  "productId" text not null,
+  type text not null default 'AJUSTE',
+  quantity numeric not null default 0,
+  "previousStock" numeric not null default 0,
+  "resultingStock" numeric not null default 0,
+  reason text,
+  "userId" text not null default '',
+  "userName" text not null default '',
+  "createdAt" timestamp with time zone default now(),
+  "updatedAt" timestamp with time zone default now()
+);
+
+-- Garantia de colunas caso a tabela 'movimentacoes_estoque' já existisse previamente:
+alter table public.movimentacoes_estoque add column if not exists "productId" text not null default '';
+alter table public.movimentacoes_estoque add column if not exists type text not null default 'AJUSTE';
+alter table public.movimentacoes_estoque add column if not exists quantity numeric not null default 0;
+alter table public.movimentacoes_estoque add column if not exists "previousStock" numeric not null default 0;
+alter table public.movimentacoes_estoque add column if not exists "resultingStock" numeric not null default 0;
+alter table public.movimentacoes_estoque add column if not exists reason text;
+alter table public.movimentacoes_estoque add column if not exists "userId" text not null default '';
+alter table public.movimentacoes_estoque add column if not exists "userName" text not null default '';
+alter table public.movimentacoes_estoque add column if not exists "createdAt" timestamp with time zone default now();
+alter table public.movimentacoes_estoque add column if not exists "updatedAt" timestamp with time zone default now();
+
+-- 4. TABELA DE DESPESAS (GESTÃO FINANCEIRA)
 create table if not exists public.despesas (
   id text primary key,
   description text not null,
@@ -539,7 +619,14 @@ create table if not exists public.despesas (
   "createdAt" timestamp with time zone default now()
 );
 
--- 4. TABELA DE CLIENTES DE FIADO (GESTÃO DE CRÉDITO)
+alter table public.despesas add column if not exists description text not null default '';
+alter table public.despesas add column if not exists category text not null default 'Outros';
+alter table public.despesas add column if not exists amount numeric not null default 0;
+alter table public.despesas add column if not exists date date not null default current_date;
+alter table public.despesas add column if not exists "registeredBy" text not null default 'Sistema';
+alter table public.despesas add column if not exists "createdAt" timestamp with time zone default now();
+
+-- 5. TABELA DE CLIENTES DE FIADO (GESTÃO DE CRÉDITO)
 create table if not exists public.clientes_fiado (
   id text primary key,
   nome text not null,
@@ -553,7 +640,17 @@ create table if not exists public.clientes_fiado (
   atualizado_em timestamp with time zone default now()
 );
 
--- 5. TABELA DE HISTÓRICO DE FIADO (EXTRATO DE DÍVIDAS E PAGAMENTOS)
+alter table public.clientes_fiado add column if not exists nome text not null default '';
+alter table public.clientes_fiado add column if not exists telefone text default '';
+alter table public.clientes_fiado add column if not exists nif text default '';
+alter table public.clientes_fiado add column if not exists endereco text default '';
+alter table public.clientes_fiado add column if not exists limite_credito numeric not null default 0;
+alter table public.clientes_fiado add column if not exists saldo_devedor numeric not null default 0;
+alter table public.clientes_fiado add column if not exists status text not null default 'ATIVO';
+alter table public.clientes_fiado add column if not exists criado_em timestamp with time zone default now();
+alter table public.clientes_fiado add column if not exists atualizado_em timestamp with time zone default now();
+
+-- 6. TABELA DE HISTÓRICO DE FIADO (EXTRATO DE DÍVIDAS E PAGAMENTOS)
 create table if not exists public.historico_fiado (
   id text primary key,
   cliente_id text not null,
@@ -569,85 +666,19 @@ create table if not exists public.historico_fiado (
   observacoes text
 );
 
--- 6. TABELA DE MOVIMENTAÇÕES DE ESTOQUE (HISTÓRICO AUDITÁVEL)
-create table if not exists public.movimentacoes_estoque (
-  id text primary key,
-  "productId" text not null,
-  type text not null default 'AJUSTE',
-  quantity integer not null default 0,
-  "previousStock" integer not null default 0,
-  "resultingStock" integer not null default 0,
-  reason text,
-  "userId" text not null default '',
-  "userName" text not null default '',
-  "createdAt" timestamp with time zone default now(),
-  "updatedAt" timestamp with time zone default now()
-);
+alter table public.historico_fiado add column if not exists cliente_id text not null default '';
+alter table public.historico_fiado add column if not exists cliente_nome text default '';
+alter table public.historico_fiado add column if not exists venda_id text;
+alter table public.historico_fiado add column if not exists invoice_number text;
+alter table public.historico_fiado add column if not exists tipo text not null default 'COMPRA_FIADO';
+alter table public.historico_fiado add column if not exists valor numeric not null default 0;
+alter table public.historico_fiado add column if not exists saldo_anterior numeric not null default 0;
+alter table public.historico_fiado add column if not exists saldo_posterior numeric not null default 0;
+alter table public.historico_fiado add column if not exists data timestamp with time zone default now();
+alter table public.historico_fiado add column if not exists registrado_por text default '';
+alter table public.historico_fiado add column if not exists observacoes text;
 
--- ==============================================================================
--- ATIVAÇÃO DA REPLICAÇÃO COMPLETA (REPLICA IDENTITY FULL)
--- Obriga o PostgreSQL a transmitir o registo anterior e o novo em UPDATE e DELETE
--- ==============================================================================
-alter table public.produtos replica identity full;
-alter table public.vendas replica identity full;
-alter table public.despesas replica identity full;
-alter table public.clientes_fiado replica identity full;
-alter table public.historico_fiado replica identity full;
-alter table public.movimentacoes_estoque replica identity full;
-
--- ==============================================================================
--- PUBLICAÇÃO REALTIME (SUPABASE_REALTIME)
--- Insere todas as tabelas na publicação do WebSocket de mudança de dados
--- ==============================================================================
-do $$
-begin
-  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    create publication supabase_realtime;
-  end if;
-end $$;
-
-alter publication supabase_realtime add table public.produtos;
-alter publication supabase_realtime add table public.vendas;
-alter publication supabase_realtime add table public.despesas;
-alter publication supabase_realtime add table public.clientes_fiado;
-alter publication supabase_realtime add table public.historico_fiado;
-alter publication supabase_realtime add table public.movimentacoes_estoque;
-
--- ==============================================================================
--- POLÍTICAS DE ACESSO (ROW LEVEL SECURITY - RLS)
--- Permite leitura e gravação bi-direcional sem bloqueios silenciosos no WebSocket
--- ==============================================================================
-alter table public.produtos enable row level security;
-alter table public.vendas enable row level security;
-alter table public.despesas enable row level security;
-alter table public.clientes_fiado enable row level security;
-alter table public.historico_fiado enable row level security;
-alter table public.movimentacoes_estoque enable row level security;
-
--- Remove políticas antigas se existirem para evitar duplicidade
-drop policy if exists "kwanzapos_produtos_all" on public.produtos;
-drop policy if exists "kwanzapos_vendas_all" on public.vendas;
-drop policy if exists "kwanzapos_despesas_all" on public.despesas;
-drop policy if exists "kwanzapos_clientes_fiado_all" on public.clientes_fiado;
-drop policy if exists "kwanzapos_historico_fiado_all" on public.historico_fiado;
-drop policy if exists "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque;
-
-create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
-create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);
-create policy "kwanzapos_despesas_all" on public.despesas for all using (true) with check (true);
-create policy "kwanzapos_clientes_fiado_all" on public.clientes_fiado for all using (true) with check (true);
-create policy "kwanzapos_historico_fiado_all" on public.historico_fiado for all using (true) with check (true);
-create policy "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque for all using (true) with check (true);
-
-create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
-create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);
-create policy "kwanzapos_despesas_all" on public.despesas for all using (true) with check (true);
-create policy "kwanzapos_clientes_fiado_all" on public.clientes_fiado for all using (true) with check (true);
-create policy "kwanzapos_historico_fiado_all" on public.historico_fiado for all using (true) with check (true);
-
--- ==============================================================================
--- 6. TABELA DE PERFIS DE UTILIZADORES (AUTENTICAÇÃO E GESTÃO DE ACESSOS)
--- ==============================================================================
+-- 7. TABELA DE PERFIS DE UTILIZADORES (AUTENTICAÇÃO E GESTÃO DE ACESSOS)
 create table if not exists public.profiles (
   id text primary key,
   email text not null unique,
@@ -660,27 +691,114 @@ create table if not exists public.profiles (
   updated_at timestamp with time zone default now()
 );
 
+alter table public.profiles add column if not exists email text not null default '';
+alter table public.profiles add column if not exists name text not null default '';
+alter table public.profiles add column if not exists role text not null default 'VENDEDOR';
+alter table public.profiles add column if not exists pin text default '2026';
+alter table public.profiles add column if not exists active boolean not null default true;
+alter table public.profiles add column if not exists last_login timestamp with time zone;
+alter table public.profiles add column if not exists created_at timestamp with time zone default now();
+alter table public.profiles add column if not exists updated_at timestamp with time zone default now();
+
+-- Índices de Alta Performance para Consultas Rápidas
+create index if not exists idx_produtos_barcode on public.produtos (barcode);
+create index if not exists idx_produtos_category on public.produtos (category);
+create index if not exists idx_vendas_invoice on public.vendas ("invoiceNumber");
+create index if not exists idx_vendas_created_at on public.vendas ("createdAt" desc);
+create index if not exists idx_vendas_seller on public.vendas ("sellerId");
+create index if not exists idx_mov_estoque_prod on public.movimentacoes_estoque ("productId");
+create index if not exists idx_despesas_date on public.despesas (date desc);
+create index if not exists idx_fiado_cliente on public.historico_fiado (cliente_id);
+
+-- ==============================================================================
+-- ATIVAÇÃO DA REPLICAÇÃO COMPLETA (REPLICA IDENTITY FULL)
+-- Obriga o PostgreSQL a transmitir o registo anterior e o novo em UPDATE e DELETE
+-- ==============================================================================
+alter table public.produtos replica identity full;
+alter table public.vendas replica identity full;
+alter table public.despesas replica identity full;
+alter table public.clientes_fiado replica identity full;
+alter table public.historico_fiado replica identity full;
+alter table public.movimentacoes_estoque replica identity full;
 alter table public.profiles replica identity full;
 
+-- ==============================================================================
+-- PUBLICAÇÃO REALTIME (SUPABASE_REALTIME - 100% IDEMPOTENTE)
+-- Adiciona apenas as tabelas que ainda não forem membros da publicação,
+-- evitando qualquer erro caso o Realtime já tenha sido ativado no painel.
+-- ==============================================================================
 do $$
+declare
+  tbl text;
+  tables_to_add text[] := array[
+    'produtos',
+    'vendas',
+    'despesas',
+    'clientes_fiado',
+    'historico_fiado',
+    'movimentacoes_estoque',
+    'profiles'
+  ];
 begin
-  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    alter publication supabase_realtime add table public.profiles;
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
   end if;
+
+  foreach tbl in array tables_to_add
+  loop
+    if not exists (
+      select 1 from pg_publication_tables 
+      where pubname = 'supabase_realtime' 
+        and schemaname = 'public' 
+        and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I;', tbl);
+    end if;
+  end loop;
 end $$;
 
+-- ==============================================================================
+-- POLÍTICAS DE ACESSO (ROW LEVEL SECURITY - RLS)
+-- Permite leitura e gravação bi-direcional sem bloqueios silenciosos no WebSocket
+-- ==============================================================================
+alter table public.produtos enable row level security;
+alter table public.vendas enable row level security;
+alter table public.despesas enable row level security;
+alter table public.clientes_fiado enable row level security;
+alter table public.historico_fiado enable row level security;
+alter table public.movimentacoes_estoque enable row level security;
 alter table public.profiles enable row level security;
+
+-- Remove políticas antigas se existirem para evitar duplicidade
+drop policy if exists "kwanzapos_produtos_all" on public.produtos;
+drop policy if exists "kwanzapos_vendas_all" on public.vendas;
+drop policy if exists "kwanzapos_despesas_all" on public.despesas;
+drop policy if exists "kwanzapos_clientes_fiado_all" on public.clientes_fiado;
+drop policy if exists "kwanzapos_historico_fiado_all" on public.historico_fiado;
+drop policy if exists "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque;
 drop policy if exists "kwanzapos_profiles_all" on public.profiles;
+
+create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
+create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);
+create policy "kwanzapos_despesas_all" on public.despesas for all using (true) with check (true);
+create policy "kwanzapos_clientes_fiado_all" on public.clientes_fiado for all using (true) with check (true);
+create policy "kwanzapos_historico_fiado_all" on public.historico_fiado for all using (true) with check (true);
+create policy "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque for all using (true) with check (true);
 create policy "kwanzapos_profiles_all" on public.profiles for all using (true) with check (true);
 
 -- Seed inicial dos perfis da VMA Comercial Lda
 insert into public.profiles (id, email, name, role, pin, active)
 values
-  ('usr-admin-victor',    'victorabreu528@gmail.com',    'Victor Abreu',   'ADMINISTRADOR', '2026', true),
-  ('usr-gerente-mauro',  'mauro.jorge@vma.co.ao',       'Mauro Jorge',    'GERENTE',       '2026', true),
-  ('usr-vendedor-daniel','daniel.muzala@vma.co.ao',     'Daniel Muzala',  'VENDEDOR',      '2026', true),
-  ('usr-vendedor-alberto','alberto.lito@vma.co.ao',     'Alberto Lito',   'VENDEDOR',      '2026', true)
+  ('usr-admin-victor',     'victorabreu528@gmail.com',    'Victor Abreu',   'ADMINISTRADOR', '2026', true),
+  ('usr-gerente-mauro',   'mauro.jorge@vma.co.ao',       'Mauro Jorge',    'GERENTE',       '2026', true),
+  ('usr-vendedor-daniel', 'daniel.muzala@vma.co.ao',     'Daniel Muzala',  'VENDEDOR',      '2026', true),
+  ('usr-vendedor-alberto','alberto.lito@vma.co.ao',      'Alberto Lito',   'VENDEDOR',      '2026', true)
 on conflict (email) do nothing;
+
+-- ==============================================================================
+-- RECARREGAR SCHEMA CACHE DO SUPABASE (POSTGREST)
+-- ==============================================================================
+notify pgrst, 'reload schema';
 
 -- ==============================================================================
 -- 7. FUNÇÃO RPC: DEDUÇÃO ATÓMICA DE ESTOQUE (ANTI RACE-CONDITION)
