@@ -16,8 +16,8 @@ export interface Product {
   category: string;
   price: number; // Sale price in Kz
   costPrice: number; // Cost price in Kz
-  stock: number;
-  minStock: number; // For red warning alert
+  quantidade: number; // Quantity in stock
+  estoque_minimo: number; // Minimum stock alert
   unit: string; // 'un', 'kg', 'cx', etc.
   imageUrl?: string;
   updatedAt: string;
