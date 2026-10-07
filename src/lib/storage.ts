@@ -339,12 +339,65 @@ export function saveSale(sale: Sale): void {
   directUpsertSale(sale).catch(handleNetworkError);
 }
 
-export function cancelSale(
+export function canCancelSale(sale: Sale, user: User): { canCancel: boolean; reason?: string } {
+  // Allow cancellation for admins and managers within 1 hour of sale creation
+  const now = new Date();
+  const created = new Date(sale.createdAt);
+  const diffMs = now.getTime() - created.getTime();
+  const oneHourMs = 60 * 60 * 1000;
+
+  if (user.role !== 'ADMINISTRADOR' && user.role !== 'GERENTE') {
+    return { canCancel: false, reason: 'Apenas administradores ou gerentes podem cancelar vendas.' };
+  }
+  if (diffMs > oneHourMs) {
+    return { canCancel: false, reason: 'A venda tem mais de 1 hora e não pode ser cancelada.' };
+  }
+  if (sale.status !== 'CONCLUIDA') {
+    return { canCancel: false, reason: 'Só é possível cancelar vendas concluídas.' };
+  }
+  return { canCancel: true };
+}
+
+  export function cancelSale(
   saleId: string,
   user: User,
   cancellationReason: string
 ): { success: boolean; error?: string } {
   const sale = salesCache.find((s) => s.id === saleId);
+  if (!sale) return { success: false, error: 'Venda não encontrada.' };
+
+  // permission check – kept simplistic
+  if (user.role !== 'ADMINISTRADOR' && user.role !== 'GERENTE') {
+    return { success: false, error: 'Permissão negada.' };
+  }
+
+  // restore stock
+  for (const item of sale.items) {
+    const prod = productsCache.find((p) => p.id === item.productId);
+    if (prod) {
+      prod.stock += item.quantity;
+      prod.updatedAt = new Date().toISOString();
+    }
+  }
+
+  sale.status = 'CANCELADA';
+  sale.cancelledAt = new Date().toISOString();
+  sale.cancelledBy = `${user.name} (${user.role})`;
+  sale.cancellationReason = cancellationReason || 'Cancelamento aprovado';
+
+  broadcastLocalChange('all', { saleCancelled: sale });
+  directCancelSale(sale.id, sale.cancelledAt, sale.cancelledBy, sale.cancellationReason).catch(
+    handleNetworkError
+  );
+
+  // sync restored stock
+  for (const item of sale.items) {
+    const p = productsCache.find((prod) => prod.id === item.productId);
+    if (p) directUpsertProduct(p).catch(handleNetworkError);
+  }
+  return { success: true };
+}
+
   if (!sale) return { success: false, error: 'Venda não encontrada.' };
 
   // permission check – kept simplistic
@@ -443,9 +496,9 @@ export function markSalesAsSynced(_ids: string[]): void {
   // No‑op – nothing to mark as synced.
 }
 
-export function removeSyncQueueItem(_id: string): void {
-  // No‑op – sync queue is disabled.
-}
+
+
+
 
 export function removeSyncQueueItemsForSale(_saleId: string): void {
   // No‑op – sync queue is disabled.
