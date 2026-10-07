@@ -142,6 +142,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   }
 }
 
+export const supabase = getSupabaseClient() as SupabaseClient;
+
+
 export interface SyncResult {
   success: boolean;
   syncedCount: number;
