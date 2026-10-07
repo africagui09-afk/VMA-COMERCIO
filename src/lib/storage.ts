@@ -398,7 +398,7 @@ export function canCancelSale(sale: Sale, user: User): { canCancel: boolean; rea
   return { success: true };
 }
 
-  if (!sale) return { success: false, error: 'Venda não encontrada.' };
+  
 
   // permission check – kept simplistic
   if (user.role !== 'ADMINISTRADOR' && user.role !== 'GERENTE') {
