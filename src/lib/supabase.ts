@@ -47,42 +47,35 @@ export function normalizeStockMovementType(rawType: any): StockMovementType {
 }
 
 /**
- * Sanitiza a movimentação de estoque para o schema do Supabase (public.movimentacoes_estoque)
+ * Sanitiza a movimentação de estoque para o schema do Supabase (public.movimentacoes_estoque).
+ * TODOS os campos em português, conforme o schema definitivo KwanzaPOS.
  */
 export function sanitizeStockMovementForSupabase(mov: any) {
   return {
     id: String(mov.id),
-    productId: String(mov.productId || mov.produtoId || ''),
-    type: normalizeStockMovementType(mov.tipo || mov.type),
-    quantity: Number(mov.quantity || mov.quantidade) || 0,
-    previousStock: Number(mov.previousStock || mov.estoqueAnterior) || 0,
-    resultingStock: Number(mov.resultingStock || mov.estoqueResultante) || 0,
-    reason: mov.reason || mov.motivo || 'Ajuste de estoque',
-    userId: String(mov.userId || mov.responsavelId || ''),
-    userName: String(mov.userName || mov.responsavelNome || 'Sistema'),
-    createdAt: mov.createdAt || mov.criadoEm || new Date().toISOString(),
-    updatedAt: mov.updatedAt || mov.atualizadoEm || new Date().toISOString(),
+    produto_id: String(mov.produto_id || mov.productId || mov.produtoId || ''),
+    tipo: normalizeStockMovementType(mov.tipo || mov.type),
+    quantidade: Number(mov.quantidade || mov.quantity) || 0,
+    motivo: mov.motivo || mov.reason || 'Ajuste de estoque',
+    criado_em: mov.criado_em || mov.createdAt || new Date().toISOString(),
   };
 }
 
 /**
- * Sanitiza o produto para o schema da tabela public.produtos no Supabase,
- * garantindo compatibilidade uniforme entre 'name' e 'nome'
+ * Sanitiza o produto para o schema da tabela public.produtos no Supabase.
+ * TODOS os campos em português, conforme o schema definitivo KwanzaPOS.
  */
 export function sanitizeProductForSupabase(product: any) {
-  const prodName = product.name || product.nome || 'Sem nome';
   return {
     id: String(product.id),
-    name: String(prodName).trim() || 'Sem nome',
+    nome: String(product.nome || product.name || 'Sem nome').trim(),
     barcode: String(product.barcode || ''),
-    category: String(product.category || product.categoria || 'Geral'),
-    price: Number(product.price ?? product.preco ?? 0),
-    costPrice: Number(product.costPrice ?? product.preco_custo ?? product.precoCusto ?? 0),
-    stock: Number(product.stock ?? product.estoque ?? 0),
-    minStock: Number(product.minStock ?? product.estoque_minimo ?? product.estoqueMinimo ?? 5),
-    unit: String(product.unit || product.unidade || 'un'),
-    imageUrl: product.imageUrl || product.imagem_url || null,
-    updatedAt: product.updatedAt || product.atualizado_em || new Date().toISOString(),
+    categoria: String(product.categoria || product.category || 'Geral'),
+    preco_custo: Number(product.preco_custo ?? product.costPrice ?? product.precoCusto ?? 0),
+    preco_venda: Number(product.preco_venda ?? product.price ?? product.preco ?? 0),
+    quantidade: Number(product.quantidade ?? product.stock ?? product.estoque ?? 0),
+    estoque_minimo: Number(product.estoque_minimo ?? product.minStock ?? product.estoqueMinimo ?? 5),
+    atualizado_em: product.atualizado_em || product.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -154,32 +147,19 @@ export interface SyncResult {
 }
 
 /**
- * Sanitiza a venda para o schema da tabela public.vendas no Supabase,
- * prevenindo erros com colunas inexistentes ou tipos incompatíveis.
+ * Sanitiza a venda para o schema da tabela public.vendas no Supabase.
+ * TODOS os campos em português, conforme o schema definitivo KwanzaPOS.
  */
 export function sanitizeSaleForSupabase(sale: any) {
   return {
     id: String(sale.id),
-    invoiceNumber: String(sale.invoiceNumber || ''),
-    items: Array.isArray(sale.items) ? sale.items : [],
+    numero_fatura: String(sale.numero_fatura || sale.invoiceNumber || ''),
+    itens: Array.isArray(sale.itens) ? sale.itens : (Array.isArray(sale.items) ? sale.items : []),
     subtotal: Number(sale.subtotal) || 0,
-    discountTotal: Number(sale.discountTotal) || 0,
     total: Number(sale.total) || 0,
-    totalCost: Number(sale.totalCost) || 0,
-    payments: Array.isArray(sale.payments) ? sale.payments : [],
-    amountReceived: sale.amountReceived !== undefined && sale.amountReceived !== null ? Number(sale.amountReceived) : null,
-    change: Number(sale.change) || 0,
-    sellerId: String(sale.sellerId || ''),
-    sellerName: String(sale.sellerName || ''),
-    sellerRole: String(sale.sellerRole || 'VENDEDOR'),
-    customerName: sale.customerName || null,
-    customerNif: sale.customerNif || null,
-    notes: sale.notes || null,
-    status: String(sale.status || 'CONCLUIDA'),
-    cancelledAt: sale.cancelledAt || null,
-    cancelledBy: sale.cancelledBy || null,
-    cancellationReason: sale.cancellationReason || null,
-    createdAt: sale.createdAt || new Date().toISOString(),
+    operador_id: String(sale.operador_id || sale.sellerId || ''),
+    operador_nome: String(sale.operador_nome || sale.sellerName || ''),
+    criado_em: sale.criado_em || sale.createdAt || new Date().toISOString(),
   };
 }
 
@@ -496,26 +476,380 @@ export const syncWithSupabase = batchSyncSalesToSupabase;
 export const forceImmediateBatchSync = batchSyncSalesToSupabase;
 
 export const SUPABASE_SQL_SCHEMA = `-- ==============================================================================
--- KWANZAPOS / VMA COMÉRCIO LDA: SCRIPT SQL DEFINITIVO E UNIFICADO
+-- KWANZAPOS / VMA COMÉRCIO LDA: SCRIPT SQL DEFINITIVO (CAMPOS EM PORTUGUÊS)
 -- Execute este script no SQL Editor do Painel do Supabase.
--- Garante a criação de tabelas, migração de colunas faltantes (ALTER TABLE IF NOT EXISTS),
--- replicação em tempo real (Realtime WebSocket) e recarregamento do schema cache.
+-- Base de dados LIMPA e ZERADA — modo 100% ONLINE.
 -- ==============================================================================
 
--- 1. TABELA DE PRODUTOS (ESTOQUE)
+-- 1. TABELA DE PRODUTOS (ESTOQUE) — campos em português
 create table if not exists public.produtos (
   id text primary key,
-  name text not null,
+  nome text not null default 'Sem nome',
   barcode text default '',
-  category text default 'Geral',
-  price numeric not null default 0,
-  "costPrice" numeric not null default 0,
-  stock numeric not null default 0,
-  "minStock" numeric not null default 5,
-  unit text default 'un',
-  "imageUrl" text,
-  "updatedAt" timestamp with time zone default now()
+  categoria text default 'Geral',
+  preco_custo numeric not null default 0,
+  preco_venda numeric not null default 0,
+  quantidade numeric not null default 0,
+  estoque_minimo numeric not null default 5,
+  atualizado_em timestamp with time zone default now()
 );
+
+-- Garantia de colunas caso a tabela 'produtos' já existisse previamente:
+alter table public.produtos add column if not exists nome text default 'Sem nome';
+alter table public.produtos add column if not exists barcode text default '';
+alter table public.produtos add column if not exists categoria text default 'Geral';
+alter table public.produtos add column if not exists preco_custo numeric not null default 0;
+alter table public.produtos add column if not exists preco_venda numeric not null default 0;
+alter table public.produtos add column if not exists quantidade numeric not null default 0;
+alter table public.produtos add column if not exists estoque_minimo numeric not null default 5;
+alter table public.produtos add column if not exists atualizado_em timestamp with time zone default now();
+
+-- 2. TABELA DE VENDAS (FRENTE DE CAIXA) — campos em português
+create table if not exists public.vendas (
+  id text primary key,
+  numero_fatura text not null default '',
+  itens jsonb not null default '[]'::jsonb,
+  subtotal numeric not null default 0,
+  total numeric not null default 0,
+  operador_id text not null default '',
+  operador_nome text not null default '',
+  criado_em timestamp with time zone default now()
+);
+
+-- Garantia de colunas:
+alter table public.vendas add column if not exists numero_fatura text default '';
+alter table public.vendas add column if not exists itens jsonb not null default '[]'::jsonb;
+alter table public.vendas add column if not exists subtotal numeric not null default 0;
+alter table public.vendas add column if not exists total numeric not null default 0;
+alter table public.vendas add column if not exists operador_id text not null default '';
+alter table public.vendas add column if not exists operador_nome text not null default '';
+alter table public.vendas add column if not exists criado_em timestamp with time zone default now();
+
+-- 3. TABELA DE MOVIMENTAÇÕES DE ESTOQUE — campos em português
+create table if not exists public.movimentacoes_estoque (
+  id text primary key,
+  produto_id text not null default '',
+  tipo text not null default 'AJUSTE',
+  quantidade numeric not null default 0,
+  motivo text,
+  criado_em timestamp with time zone default now()
+);
+
+-- Garantia de colunas:
+alter table public.movimentacoes_estoque add column if not exists produto_id text not null default '';
+alter table public.movimentacoes_estoque add column if not exists tipo text not null default 'AJUSTE';
+alter table public.movimentacoes_estoque add column if not exists quantidade numeric not null default 0;
+alter table public.movimentacoes_estoque add column if not exists motivo text;
+alter table public.movimentacoes_estoque add column if not exists criado_em timestamp with time zone default now();
+
+-- 4. TABELA DE DESPESAS (GESTÃO FINANCEIRA)
+create table if not exists public.despesas (
+  id text primary key,
+  description text not null,
+  category text not null default 'Outros',
+  amount numeric not null default 0,
+  date date not null default current_date,
+  "registeredBy" text not null default 'Sistema',
+  "createdAt" timestamp with time zone default now()
+);
+
+alter table public.despesas add column if not exists description text not null default '';
+alter table public.despesas add column if not exists category text not null default 'Outros';
+alter table public.despesas add column if not exists amount numeric not null default 0;
+alter table public.despesas add column if not exists date date not null default current_date;
+alter table public.despesas add column if not exists "registeredBy" text not null default 'Sistema';
+alter table public.despesas add column if not exists "createdAt" timestamp with time zone default now();
+
+-- 5. TABELA DE CLIENTES DE FIADO
+create table if not exists public.clientes_fiado (
+  id text primary key,
+  nome text not null,
+  telefone text default '',
+  nif text default '',
+  endereco text default '',
+  limite_credito numeric not null default 0,
+  saldo_devedor numeric not null default 0,
+  status text not null default 'ATIVO',
+  criado_em timestamp with time zone default now(),
+  atualizado_em timestamp with time zone default now()
+);
+
+alter table public.clientes_fiado add column if not exists nome text not null default '';
+alter table public.clientes_fiado add column if not exists telefone text default '';
+alter table public.clientes_fiado add column if not exists nif text default '';
+alter table public.clientes_fiado add column if not exists endereco text default '';
+alter table public.clientes_fiado add column if not exists limite_credito numeric not null default 0;
+alter table public.clientes_fiado add column if not exists saldo_devedor numeric not null default 0;
+alter table public.clientes_fiado add column if not exists status text not null default 'ATIVO';
+alter table public.clientes_fiado add column if not exists criado_em timestamp with time zone default now();
+alter table public.clientes_fiado add column if not exists atualizado_em timestamp with time zone default now();
+
+-- 6. TABELA DE HISTÓRICO DE FIADO
+create table if not exists public.historico_fiado (
+  id text primary key,
+  cliente_id text not null,
+  cliente_nome text default '',
+  venda_id text,
+  invoice_number text,
+  tipo text not null default 'COMPRA_FIADO',
+  valor numeric not null default 0,
+  saldo_anterior numeric not null default 0,
+  saldo_posterior numeric not null default 0,
+  data timestamp with time zone default now(),
+  registrado_por text default '',
+  observacoes text
+);
+
+alter table public.historico_fiado add column if not exists cliente_id text not null default '';
+alter table public.historico_fiado add column if not exists cliente_nome text default '';
+alter table public.historico_fiado add column if not exists venda_id text;
+alter table public.historico_fiado add column if not exists invoice_number text;
+alter table public.historico_fiado add column if not exists tipo text not null default 'COMPRA_FIADO';
+alter table public.historico_fiado add column if not exists valor numeric not null default 0;
+alter table public.historico_fiado add column if not exists saldo_anterior numeric not null default 0;
+alter table public.historico_fiado add column if not exists saldo_posterior numeric not null default 0;
+alter table public.historico_fiado add column if not exists data timestamp with time zone default now();
+alter table public.historico_fiado add column if not exists registrado_por text default '';
+alter table public.historico_fiado add column if not exists observacoes text;
+
+-- 7. TABELA DE PERFIS DE UTILIZADORES
+create table if not exists public.profiles (
+  id text primary key,
+  email text not null unique,
+  name text not null,
+  role text not null default 'VENDEDOR',
+  pin text default '2026',
+  active boolean not null default true,
+  last_login timestamp with time zone,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table public.profiles add column if not exists email text not null default '';
+alter table public.profiles add column if not exists name text not null default '';
+alter table public.profiles add column if not exists role text not null default 'VENDEDOR';
+alter table public.profiles add column if not exists pin text default '2026';
+alter table public.profiles add column if not exists active boolean not null default true;
+alter table public.profiles add column if not exists last_login timestamp with time zone;
+alter table public.profiles add column if not exists created_at timestamp with time zone default now();
+alter table public.profiles add column if not exists updated_at timestamp with time zone default now();
+
+-- Índices de Alta Performance
+create index if not exists idx_produtos_barcode on public.produtos (barcode);
+create index if not exists idx_produtos_categoria on public.produtos (categoria);
+create index if not exists idx_vendas_numero on public.vendas (numero_fatura);
+create index if not exists idx_vendas_criado_em on public.vendas (criado_em desc);
+create index if not exists idx_vendas_operador on public.vendas (operador_id);
+create index if not exists idx_mov_produto on public.movimentacoes_estoque (produto_id);
+create index if not exists idx_despesas_date on public.despesas (date desc);
+create index if not exists idx_fiado_cliente on public.historico_fiado (cliente_id);
+
+-- ==============================================================================
+-- REPLICA IDENTITY FULL (para Realtime WebSocket)
+-- ==============================================================================
+alter table public.produtos replica identity full;
+alter table public.vendas replica identity full;
+alter table public.despesas replica identity full;
+alter table public.clientes_fiado replica identity full;
+alter table public.historico_fiado replica identity full;
+alter table public.movimentacoes_estoque replica identity full;
+alter table public.profiles replica identity full;
+
+-- ==============================================================================
+-- PUBLICAÇÃO REALTIME (idempotente)
+-- ==============================================================================
+do $$
+declare
+  tbl text;
+  tables_to_add text[] := array[
+    'produtos',
+    'vendas',
+    'despesas',
+    'clientes_fiado',
+    'historico_fiado',
+    'movimentacoes_estoque',
+    'profiles'
+  ];
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+
+  foreach tbl in array tables_to_add
+  loop
+    if not exists (
+      select 1 from pg_publication_tables 
+      where pubname = 'supabase_realtime' 
+        and schemaname = 'public' 
+        and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I;', tbl);
+    end if;
+  end loop;
+end $$;
+
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ==============================================================================
+alter table public.produtos enable row level security;
+alter table public.vendas enable row level security;
+alter table public.despesas enable row level security;
+alter table public.clientes_fiado enable row level security;
+alter table public.historico_fiado enable row level security;
+alter table public.movimentacoes_estoque enable row level security;
+alter table public.profiles enable row level security;
+
+drop policy if exists "kwanzapos_produtos_all" on public.produtos;
+drop policy if exists "kwanzapos_vendas_all" on public.vendas;
+drop policy if exists "kwanzapos_despesas_all" on public.despesas;
+drop policy if exists "kwanzapos_clientes_fiado_all" on public.clientes_fiado;
+drop policy if exists "kwanzapos_historico_fiado_all" on public.historico_fiado;
+drop policy if exists "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque;
+drop policy if exists "kwanzapos_profiles_all" on public.profiles;
+
+create policy "kwanzapos_produtos_all" on public.produtos for all using (true) with check (true);
+create policy "kwanzapos_vendas_all" on public.vendas for all using (true) with check (true);
+create policy "kwanzapos_despesas_all" on public.despesas for all using (true) with check (true);
+create policy "kwanzapos_clientes_fiado_all" on public.clientes_fiado for all using (true) with check (true);
+create policy "kwanzapos_historico_fiado_all" on public.historico_fiado for all using (true) with check (true);
+create policy "kwanzapos_movimentacoes_estoque_all" on public.movimentacoes_estoque for all using (true) with check (true);
+create policy "kwanzapos_profiles_all" on public.profiles for all using (true) with check (true);
+
+-- Seed inicial dos perfis VMA Comercial Lda
+insert into public.profiles (id, email, name, role, pin, active)
+values
+  ('usr-admin-victor',     'victorabreu528@gmail.com',    'Victor Abreu',   'ADMINISTRADOR', '2026', true),
+  ('usr-gerente-mauro',   'mauro.jorge@vma.co.ao',       'Mauro Jorge',    'GERENTE',       '2026', true),
+  ('usr-vendedor-daniel', 'daniel.muzala@vma.co.ao',     'Daniel Muzala',  'VENDEDOR',      '2026', true),
+  ('usr-vendedor-alberto','alberto.lito@vma.co.ao',      'Alberto Lito',   'VENDEDOR',      '2026', true)
+on conflict (email) do nothing;
+
+-- ==============================================================================
+-- RECARREGAR SCHEMA CACHE DO SUPABASE (POSTGREST)
+-- ==============================================================================
+notify pgrst, 'reload schema';
+
+-- ==============================================================================
+-- RPC: DEDUÇÃO ATÓMICA DE ESTOQUE (anti race-condition)
+-- Usa os campos em português: quantidade, atualizado_em
+-- ==============================================================================
+create or replace function public.deduct_stock_atomic(
+  p_product_id text,
+  p_quantity    integer,
+  p_seller_id   text default '',
+  p_seller_name text default ''
+)
+returns table (
+  success    boolean,
+  new_stock  integer,
+  error_msg  text
+)
+language plpgsql
+security definer
+as $$
+declare
+  v_current_stock integer;
+  v_product_name  text;
+begin
+  select quantidade, nome
+  into   v_current_stock, v_product_name
+  from   public.produtos
+  where  id = p_product_id
+  for    update;
+
+  if v_current_stock is null then
+    return query select
+      false,
+      0,
+      format('Produto [%s] não encontrado.', p_product_id);
+    return;
+  end if;
+
+  if v_current_stock < p_quantity then
+    return query select
+      false,
+      v_current_stock,
+      format(
+        'Estoque insuficiente para "%s": disponível %s, solicitado %s.',
+        v_product_name, v_current_stock, p_quantity
+      );
+    return;
+  end if;
+
+  update public.produtos
+  set
+    quantidade    = quantidade - p_quantity,
+    atualizado_em = now()
+  where id = p_product_id;
+
+  return query select
+    true,
+    (v_current_stock - p_quantity),
+    ''::text;
+end;
+$$;
+
+-- ==============================================================================
+-- RPC: RESTAURAÇÃO ATÓMICA DE ESTOQUE (cancelamento de venda)
+-- Usa os campos em português: quantidade, atualizado_em, itens
+-- ==============================================================================
+create or replace function public.restore_stock_on_cancel(
+  p_sale_id      text,
+  p_items        jsonb,
+  p_cancelled_by text default 'Sistema',
+  p_reason       text default 'Cancelamento aprovado'
+)
+returns table (
+  success   boolean,
+  error_msg text
+)
+language plpgsql
+security definer
+as $$
+declare
+  v_item         jsonb;
+  v_product_id   text;
+  v_quantity     integer;
+  v_sale_status  text;
+begin
+  select status into v_sale_status
+  from   public.vendas
+  where  id = p_sale_id
+  for    update;
+
+  if v_sale_status is null then
+    return query select false, 'Venda não encontrada.'::text;
+    return;
+  end if;
+
+  if v_sale_status = 'CANCELADA' then
+    return query select false, 'Esta venda já foi cancelada.'::text;
+    return;
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_items) loop
+    v_product_id := v_item->>'productId';
+    v_quantity   := (v_item->>'quantity')::integer;
+
+    if v_product_id is not null and v_quantity > 0 then
+      update public.produtos
+      set
+        quantidade    = quantidade + v_quantity,
+        atualizado_em = now()
+      where id = v_product_id;
+    end if;
+  end loop;
+
+  update public.vendas
+  set status = 'CANCELADA'
+  where id = p_sale_id;
+
+  return query select true, ''::text;
+end;
+$$;
+`;
+
+
 
 -- Garantia de colunas caso a tabela 'produtos' já existisse previamente:
 alter table public.produtos add column if not exists name text default 'Sem nome';
